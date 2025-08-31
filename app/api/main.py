@@ -62,13 +62,16 @@ async def get_recommendations(
             teams=request.teams
         )
         
-        # Apply draft logic rules
-        draft_logic = DraftLogic()
-        final_recommendations = draft_logic.apply_draft_strategy(
-            recommendations=recommendations,
-            current_round=request.current_round,
-            roster_counts=request.roster_counts
-        )
+        # Apply draft logic rules (DISABLED - causing incorrect rankings)
+        # draft_logic = DraftLogic()
+        # final_recommendations = draft_logic.apply_draft_strategy(
+        #     recommendations=recommendations,
+        #     current_round=request.current_round,
+        #     roster_counts=request.roster_counts
+        # )
+        
+        # Use ML recommendations directly without DraftLogic modifications
+        final_recommendations = recommendations
         
         return DraftResponse(
             recommendations=final_recommendations,
