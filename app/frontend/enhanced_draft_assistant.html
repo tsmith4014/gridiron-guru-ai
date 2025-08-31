@@ -1,590 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Enhanced Fantasy Draft Assistant - ML Powered</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
 
-        .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
+      .header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
 
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #3498db, #e74c3c);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        background: linear-gradient(45deg, #3498db, #e74c3c);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
 
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
+      .header p {
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
 
-        .controls {
-            background: #f8f9fa;
-            padding: 20px;
-            border-bottom: 1px solid #dee2e6;
+      .controls {
+        background: #f8f9fa;
+        padding: 20px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .control-group {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+      }
+
+      .control-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .control-item label {
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .control-item input,
+      .control-item select {
+        padding: 10px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      .control-item input:focus,
+      .control-item select:focus {
+        outline: none;
+        border-color: #3498db;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #27ae60, #229954);
+        color: white;
+      }
+
+      .btn-warning {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+      }
+
+      .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        padding: 20px;
+      }
+
+      .panel {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e9ecef;
+      }
+
+      .panel h3 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #3498db;
+        font-size: 1.5em;
+      }
+
+      .recommendations {
+        grid-column: 1 / -1;
+      }
+
+      .recommendation-item {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 5px solid #3498db;
+        transition: transform 0.3s, box-shadow 0.3s;
+      }
+
+      .recommendation-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .recommendation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .player-name {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #2c3e50;
+      }
+
+      .player-position {
+        background: #3498db;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+      }
+
+      .score {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: #27ae60;
+      }
+
+      .priority {
+        background: #e74c3c;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+      }
+
+      .priority.high {
+        background: #e74c3c;
+      }
+      .priority.medium {
+        background: #f39c12;
+      }
+      .priority.low {
+        background: #27ae60;
+      }
+
+      .player-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+
+      .detail-item {
+        text-align: center;
+      }
+
+      .detail-label {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-bottom: 5px;
+      }
+
+      .detail-value {
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .reasoning {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 3px solid #3498db;
+      }
+
+      .strategy-insights {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+      }
+
+      .risk-assessment {
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        border: 1px solid #dc3545;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+      }
+
+      .draft-board {
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .player-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto auto auto;
+        gap: 15px;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+        transition: background-color 0.3s;
+      }
+
+      .player-row:hover {
+        background-color: #f8f9fa;
+      }
+
+      .player-row.drafted {
+        background-color: #e9ecef;
+        opacity: 0.6;
+      }
+
+      .player-row.mine {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+      }
+
+      .player-row.header {
+        background-color: #343a40;
+        color: white;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+
+      .status-buttons {
+        display: flex;
+        gap: 5px;
+      }
+
+      .status-btn {
+        padding: 5px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8em;
+        transition: all 0.3s;
+      }
+
+      .status-btn.drafted {
+        background: #6c757d;
+        color: white;
+      }
+
+      .status-btn.mine {
+        background: #28a745;
+        color: white;
+      }
+
+      .status-btn:hover {
+        transform: scale(1.05);
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+      }
+
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid #f5c6cb;
+      }
+
+      .success {
+        background: #d4edda;
+        color: #155724;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid #c3e6cb;
+      }
+
+      .score-breakdown {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+        border-left: 3px solid #3498db;
+      }
+
+      .breakdown-header {
+        font-size: 1em;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .breakdown-label {
+        font-size: 0.9em;
+        color: #6c757d;
+      }
+
+      .breakdown-value {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1em;
+      }
+
+      @media (max-width: 768px) {
+        .main-content {
+          grid-template-columns: 1fr;
         }
 
         .control-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-
-        .control-item {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .control-item label {
-            font-weight: 600;
-            color: #495057;
-        }
-
-        .control-item input, .control-item select {
-            padding: 10px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        .control-item input:focus, .control-item select:focus {
-            outline: none;
-            border-color: #3498db;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #27ae60, #229954);
-            color: white;
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            color: white;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
-        }
-
-        .panel {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            border: 1px solid #e9ecef;
-        }
-
-        .panel h3 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
-            font-size: 1.5em;
-        }
-
-        .recommendations {
-            grid-column: 1 / -1;
-        }
-
-        .recommendation-item {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-left: 5px solid #3498db;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .recommendation-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .recommendation-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .player-name {
-            font-size: 1.3em;
-            font-weight: 700;
-            color: #2c3e50;
-        }
-
-        .player-position {
-            background: #3498db;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 600;
-        }
-
-        .score {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #27ae60;
-        }
-
-        .priority {
-            background: #e74c3c;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 600;
-        }
-
-        .priority.high { background: #e74c3c; }
-        .priority.medium { background: #f39c12; }
-        .priority.low { background: #27ae60; }
-
-        .player-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .detail-item {
-            text-align: center;
-        }
-
-        .detail-label {
-            font-size: 0.9em;
-            color: #6c757d;
-            margin-bottom: 5px;
-        }
-
-        .detail-value {
-            font-weight: 600;
-            color: #2c3e50;
-        }
-
-        .reasoning {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border-left: 3px solid #3498db;
-        }
-
-        .strategy-insights {
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-            border: 1px solid #ffc107;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .risk-assessment {
-            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-            border: 1px solid #dc3545;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .draft-board {
-            max-height: 600px;
-            overflow-y: auto;
+          flex-direction: column;
+          align-items: stretch;
         }
 
         .player-row {
-            display: grid;
-            grid-template-columns: 1fr auto auto auto auto;
-            gap: 15px;
-            align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-            transition: background-color 0.3s;
+          grid-template-columns: 1fr;
+          gap: 5px;
         }
-
-        .player-row:hover {
-            background-color: #f8f9fa;
-        }
-
-        .player-row.drafted {
-            background-color: #e9ecef;
-            opacity: 0.6;
-        }
-
-        .player-row.mine {
-            background-color: #d4edda;
-            border-left: 4px solid #28a745;
-        }
-
-        .player-row.header {
-            background-color: #343a40;
-            color: white;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-        }
-
-        .status-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .status-btn {
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8em;
-            transition: all 0.3s;
-        }
-
-        .status-btn.drafted {
-            background: #6c757d;
-            color: white;
-        }
-
-        .status-btn.mine {
-            background: #28a745;
-            color: white;
-        }
-
-        .status-btn:hover {
-            transform: scale(1.05);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6c757d;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border: 1px solid #f5c6cb;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border: 1px solid #c3e6cb;
-        }
-
-        .score-breakdown {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 3px solid #3498db;
-        }
-
-        .breakdown-header {
-            font-size: 1em;
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .breakdown-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-        }
-
-        .breakdown-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .breakdown-label {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-
-        .breakdown-value {
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 1em;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .control-group {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .player-row {
-                grid-template-columns: 1fr;
-                gap: 5px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>🏈 Enhanced Fantasy Draft Assistant</h1>
-            <p>ML-Powered Draft Recommendations with Advanced Strategy</p>
+      <div class="header">
+        <h1>🏈 Enhanced Fantasy Draft Assistant</h1>
+        <p>ML-Powered Draft Recommendations with Advanced Strategy</p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <div class="control-item">
+            <label for="draftSlot">Your Draft Slot (1-10):</label>
+            <input type="number" id="draftSlot" min="1" max="10" value="1" />
+          </div>
+          <div class="control-item">
+            <label for="currentRound">Current Round:</label>
+            <input type="number" id="currentRound" min="1" max="16" value="1" />
+          </div>
+          <div class="control-item">
+            <label for="currentPick">Current Overall Pick:</label>
+            <input type="number" id="currentPick" min="1" value="1" />
+          </div>
+          <button class="btn btn-primary" onclick="getRecommendations()">
+            Get Recommendations
+          </button>
         </div>
 
-        <div class="controls">
-            <div class="control-group">
-                <div class="control-item">
-                    <label for="draftSlot">Your Draft Slot (1-10):</label>
-                    <input type="number" id="draftSlot" min="1" max="10" value="1">
-                </div>
-                <div class="control-item">
-                    <label for="currentRound">Current Round:</label>
-                    <input type="number" id="currentRound" min="1" max="16" value="1">
-                </div>
-                <div class="control-item">
-                    <label for="currentPick">Current Overall Pick:</label>
-                    <input type="number" id="currentPick" min="1" value="1">
-                </div>
-                <button class="btn btn-primary" onclick="getRecommendations()">Get Recommendations</button>
-            </div>
-            
-            <div class="control-group">
-                <!-- Removed unused Top 20/40 buttons -->
-                <button class="btn btn-danger" onclick="resetDraft()">Reset Draft</button>
-                <button class="btn btn-primary" onclick="exportDraft()">Export Draft</button>
-            </div>
+        <div class="control-group">
+          <!-- Removed unused Top 20/40 buttons -->
+          <button class="btn btn-danger" onclick="resetDraft()">
+            Reset Draft
+          </button>
+          <button class="btn btn-primary" onclick="exportDraft()">
+            Export Draft
+          </button>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <div class="panel recommendations">
+          <h3>🎯 ML Recommendations</h3>
+          <div id="recommendations">
+            <div class="loading">Click "Get Recommendations" to start</div>
+          </div>
         </div>
 
-        <div class="main-content">
-            <div class="panel recommendations">
-                <h3>🎯 ML Recommendations</h3>
-                <div id="recommendations">
-                    <div class="loading">Click "Get Recommendations" to start</div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>📊 Draft Board</h3>
-                <div id="draftBoard" class="draft-board">
-                    <div class="loading">Loading players...</div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>📈 Your Roster</h3>
-                <div id="roster">
-                    <div class="loading">No players drafted yet</div>
-                </div>
-            </div>
+        <div class="panel">
+          <h3>📊 Draft Board</h3>
+          <div id="draftBoard" class="draft-board">
+            <div class="loading">Loading players...</div>
+          </div>
         </div>
+
+        <div class="panel">
+          <h3>📈 Your Roster</h3>
+          <div id="roster">
+            <div class="loading">No players drafted yet</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        let players = [];
-        let draftHistory = [];
-        let currentRound = 1;
-        let currentPick = 1;
-        let draftSlot = 1;
+      let players = [];
+      let draftHistory = [];
+      let currentRound = 1;
+      let currentPick = 1;
+      let draftSlot = 1;
 
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            loadPlayers();
-            updateDraftInfo();
-        });
+      // Initialize the app
+      document.addEventListener("DOMContentLoaded", function () {
+        loadPlayers();
+        updateDraftInfo();
+      });
 
-        // Load players from backend
-        async function loadPlayers() {
-            try {
-                const response = await fetch('/api/players');
-                if (!response.ok) throw new Error('Failed to load players');
-                
-                const data = await response.json();
-                players = data.players; // Extract players array from response
-                renderDraftBoard();
-            } catch (error) {
-                console.error('Error loading players:', error);
-                document.getElementById('draftBoard').innerHTML = 
-                    '<div class="error">Error loading players. Please refresh the page.</div>';
-            }
+      // Load players from backend
+      async function loadPlayers() {
+        try {
+          const response = await fetch("/api/players");
+          if (!response.ok) throw new Error("Failed to load players");
+
+          const data = await response.json();
+          players = data.players; // Extract players array from response
+          renderDraftBoard();
+        } catch (error) {
+          console.error("Error loading players:", error);
+          document.getElementById("draftBoard").innerHTML =
+            '<div class="error">Error loading players. Please refresh the page.</div>';
+        }
+      }
+
+      // Get ML recommendations
+      async function getRecommendations() {
+        const draftSlot = parseInt(document.getElementById("draftSlot").value);
+        const currentRound = parseInt(
+          document.getElementById("currentRound").value
+        );
+        const currentPick = parseInt(
+          document.getElementById("currentPick").value
+        );
+
+        if (!draftSlot || !currentRound || !currentPick) {
+          alert("Please fill in all fields");
+          return;
         }
 
-        // Get ML recommendations
-        async function getRecommendations() {
-            const draftSlot = parseInt(document.getElementById('draftSlot').value);
-            const currentRound = parseInt(document.getElementById('currentRound').value);
-            const currentPick = parseInt(document.getElementById('currentPick').value);
+        try {
+          // Get available players (not drafted)
+          const draftedPlayerNames = getDraftedPlayers();
+          const availablePlayers = players.filter(
+            (p) => !draftedPlayerNames.includes(p.name)
+          );
 
-            if (!draftSlot || !currentRound || !currentPick) {
-                alert('Please fill in all fields');
-                return;
-            }
+          // Get current roster (my players)
+          const myPlayerNames = getMyPlayers();
+          const currentRoster = players.filter((p) =>
+            myPlayerNames.includes(p.name)
+          );
 
-            try {
-                // Get available players (not drafted)
-                const draftedPlayerNames = getDraftedPlayers();
-                const availablePlayers = players.filter(p => !draftedPlayerNames.includes(p.name));
-                
-                // Get current roster (my players)
-                const myPlayerNames = getMyPlayers();
-                const currentRoster = players.filter(p => myPlayerNames.includes(p.name));
-                
-                // Calculate roster counts
-                const rosterCounts = {
-                    QB: currentRoster.filter(p => p.position === 'QB').length,
-                    RB: currentRoster.filter(p => p.position === 'RB').length,
-                    WR: currentRoster.filter(p => p.position === 'WR').length,
-                    TE: currentRoster.filter(p => p.position === 'TE').length,
-                    K: currentRoster.filter(p => p.position === 'K').length,
-                    DST: currentRoster.filter(p => p.position === 'DST').length,
-                    FLEX: 0, // Will be calculated by backend
-                    BENCH: currentRoster.length
-                };
+          // Calculate roster counts
+          const rosterCounts = {
+            QB: currentRoster.filter((p) => p.position === "QB").length,
+            RB: currentRoster.filter((p) => p.position === "RB").length,
+            WR: currentRoster.filter((p) => p.position === "WR").length,
+            TE: currentRoster.filter((p) => p.position === "TE").length,
+            K: currentRoster.filter((p) => p.position === "K").length,
+            DST: currentRoster.filter((p) => p.position === "DST").length,
+            FLEX: 0, // Will be calculated by backend
+            BENCH: currentRoster.length,
+          };
 
-                const response = await fetch('/api/recommend', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        available_players: availablePlayers,
-                        current_roster: currentRoster,
-                        current_round: currentRound,
-                        draft_slot: draftSlot,
-                        teams: 10,
-                        rounds: 16,
-                        roster_counts: rosterCounts
-                    })
-                });
+          const response = await fetch("/api/recommend", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              available_players: availablePlayers,
+              current_roster: currentRoster,
+              current_round: currentRound,
+              draft_slot: draftSlot,
+              teams: 10,
+              rounds: 16,
+              roster_counts: rosterCounts,
+            }),
+          });
 
-                if (!response.ok) throw new Error('Failed to get recommendations');
-                
-                const data = await response.json();
-                displayRecommendations(data);
-            } catch (error) {
-                console.error('Error getting recommendations:', error);
-                document.getElementById('recommendations').innerHTML = 
-                    '<div class="error">Error getting recommendations. Please try again.</div>';
-            }
+          if (!response.ok) throw new Error("Failed to get recommendations");
+
+          const data = await response.json();
+          displayRecommendations(data);
+        } catch (error) {
+          console.error("Error getting recommendations:", error);
+          document.getElementById("recommendations").innerHTML =
+            '<div class="error">Error getting recommendations. Please try again.</div>';
         }
+      }
 
-        // Display recommendations
-        function displayRecommendations(data) {
-            const container = document.getElementById('recommendations');
-            
-            let html = '';
-            
-            // Strategy insights
-            if (data.strategy) {
-                html += `<div class="strategy-insights">
+      // Display recommendations
+      function displayRecommendations(data) {
+        const container = document.getElementById("recommendations");
+
+        // DEBUG: Log the raw API response
+        console.log("🔍 DEBUG: Raw API response:", data);
+        console.log("🔍 DEBUG: Recommendations array:", data.recommendations);
+
+        let html = "";
+
+        // Strategy insights
+        if (data.strategy) {
+          html += `<div class="strategy-insights">
                     <strong>🎯 Strategy:</strong> ${data.strategy}
                 </div>`;
-            }
+        }
 
-            // Recommendations
-            if (data.recommendations && data.recommendations.length > 0) {
-                data.recommendations.forEach((rec, index) => {
-                    html += `
+        // Recommendations
+        if (data.recommendations && data.recommendations.length > 0) {
+          data.recommendations.forEach((rec, index) => {
+            // DEBUG: Log each recommendation
+            console.log(`🔍 DEBUG: Recommendation ${index + 1}:`, {
+              name: rec.player.name,
+              position: rec.player.position,
+              adp: rec.player.adp,
+              score: rec.score,
+              ml_score: rec.ml_score,
+              need_score: rec.need_score,
+              risk_score: rec.risk_score,
+            });
+
+            html += `
                         <div class="recommendation-item">
                             <div class="recommendation-header">
                                 <div>
-                                    <span class="player-name">${rec.player.name}</span>
-                                    <span class="player-position">${rec.player.position}</span>
+                                    <span class="player-name">${
+                                      rec.player.name
+                                    }</span>
+                                    <span class="player-position">${
+                                      rec.player.position
+                                    }</span>
                                 </div>
                                 <div>
-                                    <span class="score">${rec.score.toFixed(1)}</span>
-                                    <span class="priority ${rec.priority.toLowerCase()}">${rec.priority}</span>
+                                    <span class="score">${rec.score.toFixed(
+                                      1
+                                    )}</span>
+                                    <span class="priority ${rec.priority.toLowerCase()}">${
+              rec.priority
+            }</span>
                                 </div>
                             </div>
                             
                             <div class="player-details">
                                 <div class="detail-item">
                                     <div class="detail-label">ADP</div>
-                                    <div class="detail-value">${rec.player.adp}</div>
+                                    <div class="detail-value">${
+                                      rec.player.adp
+                                    }</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Tier</div>
-                                    <div class="detail-value">${rec.player.tier}</div>
+                                    <div class="detail-value">${
+                                      rec.player.tier
+                                    }</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Team</div>
-                                    <div class="detail-value">${rec.player.team}</div>
+                                    <div class="detail-value">${
+                                      rec.player.team
+                                    }</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Confidence</div>
-                                    <div class="detail-value">${rec.confidence}%</div>
+                                    <div class="detail-value">${
+                                      rec.confidence
+                                    }%</div>
                                 </div>
                             </div>
                             
@@ -593,27 +646,49 @@
                                 <div class="breakdown-grid">
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">Total Score:</span>
-                                        <span class="breakdown-value">${rec.score.toFixed(1)}</span>
+                                        <span class="breakdown-value">${rec.score.toFixed(
+                                          1
+                                        )}</span>
                                     </div>
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">ML Score:</span>
-                                        <span class="breakdown-value">${rec.ml_score ? rec.ml_score.toFixed(1) : 'N/A'}</span>
+                                        <span class="breakdown-value">${
+                                          rec.ml_score
+                                            ? rec.ml_score.toFixed(1)
+                                            : "N/A"
+                                        }</span>
                                     </div>
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">Need Score:</span>
-                                        <span class="breakdown-value">${rec.need_score ? rec.need_score.toFixed(1) : 'N/A'}</span>
+                                        <span class="breakdown-value">${
+                                          rec.need_score
+                                            ? rec.need_score.toFixed(1)
+                                            : "N/A"
+                                        }</span>
                                     </div>
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">Risk Score:</span>
-                                        <span class="breakdown-value">${rec.risk_score ? rec.risk_score.toFixed(1) : 'N/A'}</span>
+                                        <span class="breakdown-value">${
+                                          rec.risk_score
+                                            ? rec.risk_score.toFixed(1)
+                                            : "N/A"
+                                        }</span>
                                     </div>
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">Handcuff:</span>
-                                        <span class="breakdown-value">${rec.handcuff_score ? rec.handcuff_score.toFixed(1) : 'N/A'}</span>
+                                        <span class="breakdown-value">${
+                                          rec.handcuff_score
+                                            ? rec.handcuff_score.toFixed(1)
+                                            : "N/A"
+                                        }</span>
                                     </div>
                                     <div class="breakdown-item">
                                         <span class="breakdown-label">Round Adj:</span>
-                                        <span class="breakdown-value">${rec.round_score ? rec.round_score.toFixed(1) : 'N/A'}</span>
+                                        <span class="breakdown-value">${
+                                          rec.round_score
+                                            ? rec.round_score.toFixed(1)
+                                            : "N/A"
+                                        }</span>
                                     </div>
                                 </div>
                             </div>
@@ -623,33 +698,38 @@
                             </div>
                             
                             <div class="status-buttons">
-                                <button class="status-btn drafted" onclick="markDrafted('${rec.player.name}')">Drafted</button>
-                                <button class="status-btn mine" onclick="markMine('${rec.player.name}')">Mine</button>
+                                <button class="status-btn drafted" onclick="markDrafted('${
+                                  rec.player.name
+                                }')">Drafted</button>
+                                <button class="status-btn mine" onclick="markMine('${
+                                  rec.player.name
+                                }')">Mine</button>
                             </div>
                         </div>
                     `;
-                });
-            } else {
-                html += '<div class="loading">No recommendations available</div>';
-            }
-
-            // Insights
-            if (data.insights && data.insights.length > 0) {
-                html += '<div class="strategy-insights"><strong>💡 Insights:</strong><ul>';
-                data.insights.forEach(insight => {
-                    html += `<li>${insight}</li>`;
-                });
-                html += '</ul></div>';
-            }
-
-            container.innerHTML = html;
+          });
+        } else {
+          html += '<div class="loading">No recommendations available</div>';
         }
 
-        // Render draft board
-        function renderDraftBoard() {
-            const container = document.getElementById('draftBoard');
-            
-            let html = `
+        // Insights
+        if (data.insights && data.insights.length > 0) {
+          html +=
+            '<div class="strategy-insights"><strong>💡 Insights:</strong><ul>';
+          data.insights.forEach((insight) => {
+            html += `<li>${insight}</li>`;
+          });
+          html += "</ul></div>";
+        }
+
+        container.innerHTML = html;
+      }
+
+      // Render draft board
+      function renderDraftBoard() {
+        const container = document.getElementById("draftBoard");
+
+        let html = `
                 <div class="player-row header">
                     <div>Player</div>
                     <div>Pos</div>
@@ -659,157 +739,178 @@
                 </div>
             `;
 
-            players.forEach(player => {
-                const isDrafted = draftHistory.some(p => p.name === player.name && p.status === 'drafted');
-                const isMine = draftHistory.some(p => p.name === player.name && p.status === 'mine');
-                
-                html += `
-                    <div class="player-row ${isDrafted ? 'drafted' : ''} ${isMine ? 'mine' : ''}">
+        players.forEach((player) => {
+          const isDrafted = draftHistory.some(
+            (p) => p.name === player.name && p.status === "drafted"
+          );
+          const isMine = draftHistory.some(
+            (p) => p.name === player.name && p.status === "mine"
+          );
+
+          html += `
+                    <div class="player-row ${isDrafted ? "drafted" : ""} ${
+            isMine ? "mine" : ""
+          }">
                         <div>${player.name}</div>
                         <div>${player.position}</div>
                         <div>${player.adp}</div>
                         <div>${player.tier}</div>
                         <div class="status-buttons">
-                            <button class="status-btn drafted" onclick="markDrafted('${player.name}')" ${isDrafted ? 'disabled' : ''}>
-                                ${isDrafted ? '✓' : 'Drafted'}
+                            <button class="status-btn drafted" onclick="markDrafted('${
+                              player.name
+                            }')" ${isDrafted ? "disabled" : ""}>
+                                ${isDrafted ? "✓" : "Drafted"}
                             </button>
-                            <button class="status-btn mine" onclick="markMine('${player.name}')" ${isMine ? 'disabled' : ''}>
-                                ${isMine ? '✓' : 'Mine'}
+                            <button class="status-btn mine" onclick="markMine('${
+                              player.name
+                            }')" ${isMine ? "disabled" : ""}>
+                                ${isMine ? "✓" : "Mine"}
                             </button>
                         </div>
                     </div>
                 `;
-            });
+        });
 
-            container.innerHTML = html;
+        container.innerHTML = html;
+      }
+
+      // Mark player as drafted
+      function markDrafted(playerName) {
+        const existingIndex = draftHistory.findIndex(
+          (p) => p.name === playerName
+        );
+        if (existingIndex >= 0) {
+          draftHistory[existingIndex].status = "drafted";
+        } else {
+          draftHistory.push({ name: playerName, status: "drafted" });
         }
 
-        // Mark player as drafted
-        function markDrafted(playerName) {
-            const existingIndex = draftHistory.findIndex(p => p.name === playerName);
-            if (existingIndex >= 0) {
-                draftHistory[existingIndex].status = 'drafted';
-            } else {
-                draftHistory.push({ name: playerName, status: 'drafted' });
-            }
-            
-            renderDraftBoard();
-            updateRoster();
-            updateDraftInfo();
+        renderDraftBoard();
+        updateRoster();
+        updateDraftInfo();
+      }
+
+      // Mark player as mine
+      function markMine(playerName) {
+        const existingIndex = draftHistory.findIndex(
+          (p) => p.name === playerName
+        );
+        if (existingIndex >= 0) {
+          draftHistory[existingIndex].status = "mine";
+        } else {
+          draftHistory.push({ name: playerName, status: "mine" });
         }
 
-        // Mark player as mine
-        function markMine(playerName) {
-            const existingIndex = draftHistory.findIndex(p => p.name === playerName);
-            if (existingIndex >= 0) {
-                draftHistory[existingIndex].status = 'mine';
-            } else {
-                draftHistory.push({ name: playerName, status: 'mine' });
-            }
-            
-            renderDraftBoard();
-            updateRoster();
-            updateDraftInfo();
+        renderDraftBoard();
+        updateRoster();
+        updateDraftInfo();
+      }
+
+      // Update roster display
+      function updateRoster() {
+        const container = document.getElementById("roster");
+        const myPlayers = draftHistory.filter((p) => p.status === "mine");
+
+        if (myPlayers.length === 0) {
+          container.innerHTML =
+            '<div class="loading">No players drafted yet</div>';
+          return;
         }
 
-        // Update roster display
-        function updateRoster() {
-            const container = document.getElementById('roster');
-            const myPlayers = draftHistory.filter(p => p.status === 'mine');
-            
-            if (myPlayers.length === 0) {
-                container.innerHTML = '<div class="loading">No players drafted yet</div>';
-                return;
-            }
-
-            let html = '<h4>Your Picks:</h4>';
-            myPlayers.forEach(player => {
-                const playerData = players.find(p => p.name === player.name);
-                if (playerData) {
-                    html += `
+        let html = "<h4>Your Picks:</h4>";
+        myPlayers.forEach((player) => {
+          const playerData = players.find((p) => p.name === player.name);
+          if (playerData) {
+            html += `
                         <div style="padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 8px;">
                             <strong>${playerData.name}</strong> (${playerData.position}) - ${playerData.team}
                         </div>
                     `;
-                }
-            });
+          }
+        });
 
-            container.innerHTML = html;
+        container.innerHTML = html;
+      }
+
+      // Update draft info
+      function updateDraftInfo() {
+        const myPlayers = draftHistory.filter((p) => p.status === "mine");
+        const currentRound = Math.ceil(myPlayers.length / 10) + 1;
+
+        document.getElementById("currentRound").value = currentRound;
+
+        // Calculate current pick based on draft slot and round
+        const currentPick = calculateCurrentPick();
+        document.getElementById("currentPick").value = currentPick;
+      }
+
+      // Calculate current pick
+      function calculateCurrentPick() {
+        const draftSlot = parseInt(document.getElementById("draftSlot").value);
+        const currentRound = parseInt(
+          document.getElementById("currentRound").value
+        );
+
+        if (currentRound % 2 === 1) {
+          // Odd rounds: 1, 3, 5, 7, 9, 11, 13, 15
+          return (currentRound - 1) * 10 + draftSlot;
+        } else {
+          // Even rounds: 2, 4, 6, 8, 10, 12, 14, 16
+          return (currentRound - 1) * 10 + (11 - draftSlot);
         }
+      }
 
-        // Update draft info
-        function updateDraftInfo() {
-            const myPlayers = draftHistory.filter(p => p.status === 'mine');
-            const currentRound = Math.ceil(myPlayers.length / 10) + 1;
-            
-            document.getElementById('currentRound').value = currentRound;
-            
-            // Calculate current pick based on draft slot and round
-            const currentPick = calculateCurrentPick();
-            document.getElementById('currentPick').value = currentPick;
+      // Get drafted players for API
+      function getDraftedPlayers() {
+        return draftHistory
+          .filter((p) => p.status === "drafted")
+          .map((p) => p.name);
+      }
+
+      // Get my players for API
+      function getMyPlayers() {
+        return draftHistory
+          .filter((p) => p.status === "mine")
+          .map((p) => p.name);
+      }
+
+      // Quick actions (removed unused Top 20/40 functions)
+
+      function resetDraft() {
+        if (confirm("Are you sure you want to reset the entire draft?")) {
+          draftHistory = [];
+          renderDraftBoard();
+          updateRoster();
+          updateDraftInfo();
+          document.getElementById("recommendations").innerHTML =
+            '<div class="loading">Click "Get Recommendations" to start</div>';
         }
+      }
 
-        // Calculate current pick
-        function calculateCurrentPick() {
-            const draftSlot = parseInt(document.getElementById('draftSlot').value);
-            const currentRound = parseInt(document.getElementById('currentRound').value);
-            
-            if (currentRound % 2 === 1) {
-                // Odd rounds: 1, 3, 5, 7, 9, 11, 13, 15
-                return (currentRound - 1) * 10 + draftSlot;
-            } else {
-                // Even rounds: 2, 4, 6, 8, 10, 12, 14, 16
-                return (currentRound - 1) * 10 + (11 - draftSlot);
-            }
-        }
+      function exportDraft() {
+        const data = {
+          draftSlot: parseInt(document.getElementById("draftSlot").value),
+          currentRound: parseInt(document.getElementById("currentRound").value),
+          currentPick: parseInt(document.getElementById("currentPick").value),
+          draftHistory: draftHistory,
+          timestamp: new Date().toISOString(),
+        };
 
-        // Get drafted players for API
-        function getDraftedPlayers() {
-            return draftHistory
-                .filter(p => p.status === 'drafted')
-                .map(p => p.name);
-        }
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "draft_export.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
 
-        // Get my players for API
-        function getMyPlayers() {
-            return draftHistory
-                .filter(p => p.status === 'mine')
-                .map(p => p.name);
-        }
-
-        // Quick actions (removed unused Top 20/40 functions)
-
-        function resetDraft() {
-            if (confirm('Are you sure you want to reset the entire draft?')) {
-                draftHistory = [];
-                renderDraftBoard();
-                updateRoster();
-                updateDraftInfo();
-                document.getElementById('recommendations').innerHTML = 
-                    '<div class="loading">Click "Get Recommendations" to start</div>';
-            }
-        }
-
-        function exportDraft() {
-            const data = {
-                draftSlot: parseInt(document.getElementById('draftSlot').value),
-                currentRound: parseInt(document.getElementById('currentRound').value),
-                currentPick: parseInt(document.getElementById('currentPick').value),
-                draftHistory: draftHistory,
-                timestamp: new Date().toISOString()
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'draft_export.json';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // Auto-update draft info when draft slot changes
-        document.getElementById('draftSlot').addEventListener('change', updateDraftInfo);
+      // Auto-update draft info when draft slot changes
+      document
+        .getElementById("draftSlot")
+        .addEventListener("change", updateDraftInfo);
     </script>
-</body>
+  </body>
 </html>

@@ -173,12 +173,12 @@ class DraftMLModel:
             # Final ADP validation - heavily penalize high-ADP players in early rounds
             original_score = total_score
             if current_round <= 5:
-                if player.adp > 50:
-                    total_score *= 0.5  # 50% penalty for ADP > 50 in first 5 rounds
-                if player.adp > 100:
-                    total_score *= 0.3  # 70% penalty for ADP > 100 in first 5 rounds
+                if player.adp > 100:  # Only penalize ADP > 100 (bad players) in first 5 rounds
+                    total_score *= 0.5  # 50% penalty for ADP > 100 in first 5 rounds
+                elif player.adp > 50:  # Only penalize ADP > 50 (bad players) in first 5 rounds
+                    total_score *= 0.7  # 30% penalty for ADP > 50 in first 5 rounds
             elif current_round <= 10:
-                if player.adp > 100:
+                if player.adp > 100:  # Only penalize ADP > 100 (bad players) in rounds 6-10
                     total_score *= 0.6  # 40% penalty for ADP > 100 in rounds 6-10
             
             # Debug logging for top players
