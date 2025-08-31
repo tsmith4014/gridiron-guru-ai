@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://draft_user:draft_password@db:5432/draft_db
+      - ENVIRONMENT=development
+    depends_on:
+      - db
+    networks:
+      - draft_network
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=draft_db
+      - POSTGRES_USER=draft_user
+      - POSTGRES_PASSWORD=draft_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - draft_network
+
+volumes:
+  postgres_data:
+
+networks:
+  draft_network:
+    driver: bridge

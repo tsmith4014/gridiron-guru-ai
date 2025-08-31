@@ -1,0 +1,768 @@
+<!--
+  This is an improved version of the draft assistant HTML with preloaded players.
+  It fixes a bug in the parseCSV function caused by a multi-line regex literal
+  (see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/split for details).
+  The fix here uses a single-line regex to split by Windows (\r\n) or Unix (\n) newlines: /\r?\n/.
+
+  MAJOR IMPROVEMENT: The recommendation logic has been completely rewritten to be much more user-friendly:
+  - Automatically tracks rounds and pick numbers based on your slot position
+  - No need to manually update current overall pick
+  - Now prioritizes the best available players (by ADP) first
+  - Simple positional need bonuses instead of confusing multipliers
+  - Clear priority indicators (🔥 TOP PICK, ⭐ HIGH, ✅ GOOD, 📋 CONSIDER)
+  - Shows your next pick number for better planning
+
+  This file also includes the pre-populated top-160 player list with updated team assignments.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fantasy Draft Assistant (Auto-Round Tracking)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 4px 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      .search {
+        margin-bottom: 10px;
+      }
+      .draft-controls {
+        background: #f0f8ff;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .round-info {
+        background: #fff3cd;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Fantasy Draft Assistant (Auto-Round Tracking)</h1>
+    <p>
+      This tool automatically tracks your draft rounds and pick numbers. Just
+      set your draft slot once, then mark players as drafted and yours as you
+      go!
+    </p>
+
+    <div class="draft-controls">
+      <h3>Draft Settings (Set Once)</h3>
+      <label
+        >Teams: <input id="teams" type="number" min="2" max="20" value="10"
+      /></label>
+      <label
+        >Rounds: <input id="rounds" type="number" min="1" max="25" value="16"
+      /></label>
+      <label
+        >Your Draft Slot:
+        <input id="slot" type="number" min="1" max="10" value="1"
+      /></label>
+      <button id="reset">Reset Draft</button>
+    </div>
+
+    <div class="round-info" id="draftInfo">
+      <p><strong>Round 1 of 16</strong></p>
+      <p>Your pick: #1 overall</p>
+      <p>Next pick: #20 overall (Round 2)</p>
+    </div>
+
+    <h2>Players (<span id="targetCount">160</span>)</h2>
+    <div class="search">
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="Search by name, team, or position"
+      />
+      <button id="recommend">Recommend Best Pick</button>
+    </div>
+    <table id="board"></table>
+    <div id="rec"></div>
+
+    <h2>Import / Export</h2>
+    <p>
+      You can paste CSV text or upload a CSV file. Columns supported (any
+      order): <strong>Name, Pos, Team, ADP, Tier</strong>. Extra columns are
+      ignored. Only the first <span id="targetCount2">160</span> players are
+      used (teams × rounds).
+    </p>
+    <textarea
+      id="paste"
+      rows="4"
+      cols="60"
+      placeholder="Paste CSV here..."
+    ></textarea>
+    <label for="file"
+      >Upload CSV file: <input id="file" type="file" accept=".csv"
+    /></label>
+    <button id="importText">Import From Text</button>
+    <button id="loadSample">Load Preloaded Top 160</button>
+    <button id="exportJson">Export Draft State</button>
+    <label for="importState"
+      >Import draft state: <input id="importState" type="file" accept=".json"
+    /></label>
+
+    <script>
+      // --- State ---
+      let players = [];
+      let teams = 10,
+        rounds = 16,
+        slot = 1;
+      let currentRound = 1; // Track current round automatically
+      let draftHistory = []; // Track all picks made
+      const TARGET_COUNT = () => teams * rounds;
+      const TARGET_LIMIT = () => teams * rounds;
+
+      // --- Utilities ---
+      function parseCSV(text) {
+        // Split lines on CRLF or LF; using a single-line regex avoids syntax errors
+        const lines = text.trim().split(/\r?\n/);
+        if (lines.length === 0) return [];
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+        const idx = {
+          name: headers.indexOf("name"),
+          pos: headers.indexOf("pos"),
+          team: headers.indexOf("team"),
+          adp: headers.indexOf("adp"),
+          tier: headers.indexOf("tier"),
+        };
+        const out = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",").map((c) => c.trim());
+          if (cols.length === 0 || !cols[0]) continue;
+          const p = {
+            name: idx.name > -1 ? cols[idx.name] : cols[0],
+            pos: idx.pos > -1 ? cols[idx.pos] : "",
+            team: idx.team > -1 ? cols[idx.team] : "",
+            adp: idx.adp > -1 ? Number(cols[idx.adp]) : i,
+            tier: idx.tier > -1 ? cols[idx.tier] : "",
+          };
+          if (p.name) out.push({ ...p, drafted: false, mine: false });
+        }
+        return out;
+      }
+
+      // Calculate your pick number for any given round
+      function getMyPickNumber(roundNum, slot, teams) {
+        return roundNum % 2 === 1
+          ? (roundNum - 1) * teams + slot
+          : roundNum * teams - slot + 1;
+      }
+
+      // Get your next pick number
+      function getMyNextPick() {
+        if (currentRound >= rounds) return null;
+        return getMyPickNumber(currentRound + 1, slot, teams);
+      }
+
+      // Get your current pick number
+      function getMyCurrentPick() {
+        return getMyPickNumber(currentRound, slot, teams);
+      }
+
+      // Calculate which round we're in based on draft history
+      function calculateCurrentRound() {
+        if (draftHistory.length === 0) return 1;
+        return Math.ceil(draftHistory.length / teams);
+      }
+
+      // Update the display to show current round and pick info
+      function updateDraftInfo() {
+        const currentPick = getMyCurrentPick();
+        const nextPick = getMyNextPick();
+
+        // Update the display to show round info
+        const draftInfo = document.getElementById("draftInfo");
+        if (draftInfo) {
+          draftInfo.innerHTML = `
+        <p><strong>Round ${currentRound} of ${rounds}</strong></p>
+        <p>Your pick: #${currentPick} overall</p>
+        ${
+          nextPick
+            ? `<p>Next pick: #${nextPick} overall (Round ${
+                currentRound + 1
+              })</p>`
+            : "<p>Final round!</p>"
+        }
+      `;
+        }
+      }
+
+      function computeRosterCounts() {
+        const mine = players.filter((p) => p.mine);
+        const counts = {
+          QB: 0,
+          RB: 0,
+          WR: 0,
+          TE: 0,
+          K: 0,
+          DST: 0,
+          FLEX: 0,
+          BENCH: 0,
+        };
+        mine.forEach((p) => {
+          const pos = p.pos.toUpperCase();
+          if (pos === "QB") counts.QB++;
+          else if (pos === "RB") counts.RB++;
+          else if (pos === "WR") counts.WR++;
+          else if (pos === "TE") counts.TE++;
+          else if (pos === "K") counts.K++;
+          else if (pos === "DST") counts.DST++;
+        });
+        // FLEX is any RB/WR/TE beyond starters (2 RB, 2 WR, 1 TE)
+        const flexCount = Math.max(
+          0,
+          counts.RB - 2 + (counts.WR - 2) + (counts.TE - 1)
+        );
+        counts.FLEX = flexCount;
+        // Bench are all mine beyond starters and one flex
+        const starters = 1 + 2 + 2 + 1 + 1 + 1; // QB + 2 RB + 2 WR + TE + K + DST
+        counts.BENCH = Math.max(0, mine.length - (starters + counts.FLEX));
+        return counts;
+      }
+
+      function renderBoard() {
+        const board = document.getElementById("board");
+        const searchValue = document
+          .getElementById("searchInput")
+          .value.trim()
+          .toLowerCase();
+        let filtered = players;
+        if (searchValue) {
+          filtered = players.filter(
+            (p) =>
+              p.name.toLowerCase().includes(searchValue) ||
+              p.team.toLowerCase().includes(searchValue) ||
+              p.pos.toLowerCase().includes(searchValue)
+          );
+        }
+        // Trim to first TARGET_COUNT players
+        const limit = TARGET_COUNT();
+        filtered = filtered.slice(0, limit);
+        let html =
+          "<tr><th>#</th><th>Name</th><th>Pos</th><th>Team</th><th>ADP</th><th>Tier</th><th>Drafted</th><th>Mine</th></tr>";
+        filtered.forEach((p, idx) => {
+          const drafted = p.drafted ? "checked" : "";
+          const mine = p.mine ? "checked" : "";
+          html += `<tr>`;
+          html += `<td>${idx + 1}</td>`;
+          html += `<td>${p.name}</td>`;
+          html += `<td>${p.pos}</td>`;
+          html += `<td>${p.team}</td>`;
+          html += `<td>${p.adp}</td>`;
+          html += `<td>${p.tier}</td>`;
+          html += `<td><input type="checkbox" data-idx="${idx}" class="drafted" ${drafted}></td>`;
+          html += `<td><input type="checkbox" data-idx="${idx}" class="mine" ${mine}></td>`;
+          html += `</tr>`;
+        });
+        board.innerHTML = html;
+
+        // Update draft info and roster counts
+        updateDraftInfo();
+        const counts = computeRosterCounts();
+        document.getElementById("targetCount").textContent = limit;
+        document.getElementById("targetCount2").textContent = limit;
+      }
+
+      function recommend() {
+        const counts = computeRosterCounts();
+        const currentPick = getMyCurrentPick();
+        const nextPick = getMyNextPick();
+
+        if (!players || players.length === 0) return;
+
+        // Get available players (not drafted)
+        const available = players.filter((p) => !p.drafted);
+
+        // Simple priority system: prioritize best available players
+        const scored = available.map((p) => {
+          let score = 0;
+
+          // Base score: higher ADP rank = higher score (lower ADP number = better)
+          score = 200 - p.adp;
+
+          // Positional need bonuses (simple additions)
+          const needRB = counts.RB < 2;
+          const needWR = counts.WR < 2;
+          const needTE = counts.TE < 1;
+          const needQB = counts.QB < 1;
+
+          // Give bonus for positions you need
+          if (needRB && p.pos.toUpperCase() === "RB") score += 20;
+          if (needWR && p.pos.toUpperCase() === "WR") score += 20;
+          if (needTE && p.pos.toUpperCase() === "TE") score += 15;
+          if (needQB && p.pos.toUpperCase() === "QB") score += 15;
+
+          // Small bonus for flex positions (RB/WR/TE) if you have starters but need depth
+          if (counts.RB >= 2 && counts.WR >= 2 && counts.TE >= 1) {
+            if (["RB", "WR", "TE"].includes(p.pos.toUpperCase())) score += 10;
+          }
+
+          return { p, score };
+        });
+
+        // Sort by score (highest first)
+        scored.sort((a, b) => b.score - a.score);
+
+        // Show top 10 recommendations
+        const top = scored.slice(0, 10);
+
+        let html = `<p><strong>Best options for Round ${currentRound} (Pick #${currentPick}):</strong></p>`;
+        html += `<p><em>Next pick: ${
+          nextPick
+            ? `Pick #${nextPick} (Round ${currentRound + 1})`
+            : "Final round!"
+        }</em></p>`;
+        html += `<table><tr><th>Rank</th><th>Name</th><th>Pos</th><th>Team</th><th>ADP</th><th>Tier</th><th>Priority</th></tr>`;
+
+        top.forEach((it, idx) => {
+          const priority =
+            idx === 0
+              ? "🔥 TOP PICK"
+              : idx <= 2
+              ? "⭐ HIGH"
+              : idx <= 4
+              ? "✅ GOOD"
+              : "📋 CONSIDER";
+
+          html += `<tr>`;
+          html += `<td>${idx + 1}</td>`;
+          html += `<td>${it.p.name}</td>`;
+          html += `<td>${it.p.pos}</td>`;
+          html += `<td>${it.p.team}</td>`;
+          html += `<td>${it.p.adp}</td>`;
+          html += `<td>${it.p.tier}</td>`;
+          html += `<td>${priority}</td>`;
+          html += `</tr>`;
+        });
+
+        html += `</table>`;
+
+        // Add roster summary
+        const rosterSummary = `<p><strong>Your current roster:</strong> QB: ${counts.QB}, RB: ${counts.RB}, WR: ${counts.WR}, TE: ${counts.TE}, K: ${counts.K}, DST: ${counts.DST}, Bench: ${counts.BENCH}</p>`;
+        html += rosterSummary;
+
+        document.getElementById("rec").innerHTML = html;
+      }
+
+      // Helper function to generate smart reasoning for recommendations
+      function generateRecommendationReason(player, counts, round) {
+        let reasons = [];
+
+        // ADP-based reasoning
+        if (player.adp <= 20) reasons.push("Elite player");
+        else if (player.adp <= 50) reasons.push("Strong value");
+        else if (player.adp <= 100) reasons.push("Good depth");
+        else reasons.push("Late round value");
+
+        // Tier reasoning
+        if (player.tier === "1") reasons.push("Tier 1 talent");
+        else if (player.tier === "2") reasons.push("Tier 2 talent");
+
+        // Position need reasoning
+        if (counts.RB < 2 && player.pos.toUpperCase() === "RB")
+          reasons.push("Need RB");
+        if (counts.WR < 2 && player.pos.toUpperCase() === "WR")
+          reasons.push("Need WR");
+        if (counts.TE < 1 && player.pos.toUpperCase() === "TE")
+          reasons.push("Need TE");
+        if (counts.QB < 1 && player.pos.toUpperCase() === "QB")
+          reasons.push("Need QB");
+
+        // Special reasoning
+        if (round >= 12 && player.pos.toUpperCase() === "K" && counts.K < 1)
+          reasons.push("Need K");
+        if (round >= 12 && player.pos.toUpperCase() === "DST" && counts.DST < 1)
+          reasons.push("Need DST");
+
+        // Handcuff reasoning
+        if (player.pos.toUpperCase() === "RB" && counts.RB >= 2) {
+          const myRBs = players.filter(
+            (p) => p.mine && p.pos.toUpperCase() === "RB"
+          );
+          const isHandcuff = myRBs.some((myRB) => myRB.team === player.team);
+          if (isHandcuff) reasons.push("Handcuff");
+        }
+
+        return reasons.join(", ");
+      }
+
+      // Helper function to generate next round strategy
+      function generateNextRoundStrategy(counts, round) {
+        let strategy = [];
+
+        if (round <= 3) {
+          strategy.push("Focus on best available player");
+        } else if (round <= 7) {
+          if (counts.RB < 2) strategy.push("Prioritize RB");
+          if (counts.WR < 2) strategy.push("Prioritize WR");
+          if (counts.TE < 1) strategy.push("Prioritize TE");
+          if (counts.QB < 1) strategy.push("Consider QB");
+        } else if (round <= 11) {
+          if (counts.RB < 3) strategy.push("Build RB depth");
+          if (counts.WR < 3) strategy.push("Build WR depth");
+          if (counts.TE < 2) strategy.push("Consider TE depth");
+          if (counts.QB < 1) strategy.push("Get QB");
+        } else {
+          if (counts.K < 1) strategy.push("Get K");
+          if (counts.DST < 1) strategy.push("Get DST");
+          strategy.push("Fill remaining needs");
+        }
+
+        return strategy.join(", ") || "Focus on best available player";
+      }
+
+      // Helper function to generate draft insights
+      function generateDraftInsights(counts, round, available) {
+        let insights = [];
+
+        // Position scarcity insights
+        const rbAvailable = available.filter(
+          (p) => p.pos.toUpperCase() === "RB"
+        ).length;
+        const wrAvailable = available.filter(
+          (p) => p.pos.toUpperCase() === "WR"
+        ).length;
+        const teAvailable = available.filter(
+          (p) => p.pos.toUpperCase() === "TE"
+        ).length;
+
+        if (rbAvailable < 10)
+          insights.push(`⚠️ Only ${rbAvailable} RBs remaining`);
+        if (wrAvailable < 15)
+          insights.push(`⚠️ Only ${wrAvailable} WRs remaining`);
+        if (teAvailable < 5)
+          insights.push(`⚠️ Only ${teAvailable} TEs remaining`);
+
+        // Roster balance insights
+        if (counts.RB >= 4) insights.push("💡 RB depth is strong");
+        if (counts.WR >= 4) insights.push("💡 WR depth is strong");
+        if (counts.TE >= 2) insights.push("💡 TE depth is strong");
+
+        if (insights.length > 0) {
+          return `<p><strong>Draft Insights:</strong> ${insights.join(
+            " | "
+          )}</p>`;
+        }
+        return "";
+      }
+
+      // Function to advance to next round (call this after you make your pick)
+      function advanceToNextRound() {
+        if (currentRound < rounds) {
+          currentRound++;
+          updateDraftInfo();
+          renderBoard();
+        }
+      }
+
+      // Function to go back a round (if you need to undo)
+      function goBackARound() {
+        if (currentRound > 1) {
+          currentRound--;
+          updateDraftInfo();
+          renderBoard();
+        }
+      }
+
+      document.getElementById("teams").addEventListener("change", (e) => {
+        teams = Number(e.target.value);
+        usePlayers(players);
+      });
+      document.getElementById("rounds").addEventListener("change", (e) => {
+        rounds = Number(e.target.value);
+        usePlayers(players);
+      });
+      document.getElementById("slot").addEventListener("change", (e) => {
+        slot = Number(e.target.value);
+        updateDraftInfo();
+        renderBoard();
+      });
+
+      document.getElementById("loadSample").addEventListener("click", () => {
+        const list = parseCSV(SAMPLE);
+        usePlayers(list);
+      });
+      document.getElementById("importText").addEventListener("click", () => {
+        const text = document.getElementById("paste").value;
+        const list = parseCSV(text);
+        usePlayers(list);
+      });
+      document.getElementById("file").addEventListener("change", async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const text = await f.text();
+        const list = parseCSV(text);
+        usePlayers(list);
+      });
+      document.getElementById("reset").addEventListener("click", () => {
+        players = [];
+        currentRound = 1;
+        draftHistory = [];
+        renderBoard();
+        document.getElementById("rec").innerHTML = "";
+        document.getElementById("paste").value = "";
+        document.getElementById("file").value = "";
+      });
+      document.getElementById("recommend").addEventListener("click", recommend);
+      document.getElementById("exportJson").addEventListener("click", () => {
+        const state = {
+          players,
+          teams: Number(document.getElementById("teams").value),
+          rounds: Number(document.getElementById("rounds").value),
+          slot: Number(document.getElementById("slot").value),
+          currentRound: currentRound,
+        };
+        const blob = new Blob([JSON.stringify(state, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "draft_state.json";
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        a.remove();
+      });
+      document
+        .getElementById("importState")
+        .addEventListener("change", async (e) => {
+          const f = e.target.files[0];
+          if (!f) return;
+          const text = await f.text();
+          try {
+            const s = JSON.parse(text);
+            players = s.players || [];
+            teams = s.teams || teams;
+            rounds = s.rounds || rounds;
+            slot = s.slot || slot;
+            currentRound = s.currentRound || 1;
+            document.getElementById("teams").value = teams;
+            document.getElementById("rounds").value = rounds;
+            document.getElementById("slot").value = slot;
+            usePlayers(players);
+          } catch (err) {
+            alert("Invalid state file");
+          }
+        });
+
+      // --- Preloaded sample ---
+      const SAMPLE = `Name,Pos,Team,ADP,Tier
+Ja'Marr Chase,WR,CIN,1,1
+Bijan Robinson,RB,ATL,2,1
+Saquon Barkley,RB,PHI,3,1
+Justin Jefferson,WR,MIN,4,1
+Jahmyr Gibbs,RB,DET,5,1
+CeeDee Lamb,WR,DAL,6,1
+Christian McCaffrey,RB,SF,7,1
+Malik Nabers,WR,NYG,8,1
+Nico Collins,WR,HOU,9,1
+Amon-Ra St. Brown,WR,DET,10,1
+Drake London,WR,ATL,11,1
+Brian Thomas Jr.,WR,JAC,12,1
+Puka Nacua,WR,LAR,13,1
+Ashton Jeanty,RB,LV,14,1
+Chase Brown,RB,CIN,15,1
+De'Von Achane,RB,MIA,16,1
+Derrick Henry,RB,BAL,17,1
+A.J. Brown,WR,PHI,18,1
+Brock Bowers,TE,LV,19,1
+Trey McBride,TE,ARI,20,1
+Bucky Irving,RB,TB,21,2
+Ladd McConkey,WR,LAC,22,2
+Josh Jacobs,RB,GB,23,2
+Jonathan Taylor,RB,IND,24,2
+Kyren Williams,RB,LAR,25,2
+Omarion Hampton,RB,LAC,26,2
+Josh Allen,QB,BUF,27,2
+Lamar Jackson,QB,BAL,28,2
+Jayden Daniels,QB,WAS,29,2
+George Kittle,TE,SF,30,2
+Jaxon Smith-Njigba,WR,SEA,31,2
+Tee Higgins,WR,CIN,32,2
+Mike Evans,WR,TB,33,2
+Kenneth Walker III,RB,SEA,34,2
+TreVeyon Henderson,RB,NE,35,2
+Garrett Wilson,WR,NYJ,36,2
+Jalen Hurts,QB,PHI,37,2
+Terry McLaurin,WR,WAS,38,2
+Marvin Harrison Jr.,WR,ARI,39,2
+Tetairoa McMillan,WR,CAR,40,2
+Tyreek Hill,WR,MIA,41,3
+Davante Adams,WR,LAR,42,3
+James Cook,RB,BUF,43,3
+Xavier Worthy,WR,KC,44,3
+DK Metcalf,WR,PIT,45,3
+DeVonta Smith,WR,PHI,46,3
+Alvin Kamara,RB,NO,47,3
+Travis Hunter,WR,JAC,48,3
+James Conner,RB,ARI,49,3
+Breece Hall,RB,NYJ,50,3
+George Pickens,WR,DAL,51,3
+Emeka Egbuka,WR,TB,52,3
+Chuba Hubbard,RB,CAR,53,3
+RJ Harvey,RB,DEN,54,3
+Rome Odunze,WR,CHI,55,3
+Tony Pollard,RB,TEN,56,3
+Rashee Rice (SUSP6 — target R8–10 if WR-deep),WR,KC,57,3
+Jaylen Waddle,WR,MIA,58,3
+Jameson Williams,WR,DET,59,3
+Courtland Sutton,WR,DEN,60,3
+Calvin Ridley,WR,TEN,61,3
+Isiah Pacheco,RB,KC,62,3
+DJ Moore,WR,CHI,63,3
+Zay Flowers,WR,BAL,64,3
+Ricky Pearsall,WR,SF,65,3
+Chris Olave,WR,NO,66,3
+Matthew Golden,WR,GB,67,3
+Sam LaPorta,TE,DET,68,3
+Tyrone Tracy Jr.,RB,NYG,69,3
+D'Andre Swift,RB,CHI,70,3
+David Montgomery,RB,DET,71,3
+Aaron Jones Sr.,RB,MIN,72,3
+Jordan Addison,WR,MIN,73,3
+Jerry Jeudy,WR,CLE,74,3
+Kaleb Johnson,RB,PIT,75,3
+Jauan Jennings,WR,SF,76,3
+Jordan Mason,RB,MIN,77,3
+Jaylen Warren,RB,PIT,78,3
+Stefon Diggs,WR,NE,79,3
+Joe Burrow,QB,CIN,80,3
+Jacory Croskey-Merritt,RB,WAS,81,4
+Jakobi Meyers,WR,LV,82,4
+Keon Coleman,WR,BUF,83,4
+T.J. Hockenson,TE,MIN,84,4
+Deebo Samuel Sr.,WR,WAS,85,4
+Jayden Reed,WR,GB,86,4
+Khalil Shakir,WR,BUF,87,4
+Josh Downs,WR,IND,88,4
+Tucker Kraft,TE,GB,89,4
+Mark Andrews,TE,BAL,90,4
+J.K. Dobbins,RB,DEN,91,4
+Braelon Allen,RB,NYJ,92,4
+Zach Charbonnet,RB,SEA,93,4
+Travis Kelce,TE,KC,94,4
+David Njoku,TE,CLE,95,4
+Tank Bigsby,RB,JAC,96,4
+Bhayshul Tuten,RB,JAC,97,4
+Travis Etienne Jr.,RB,JAC,98,4
+Trey Benson,RB,ARI,99,4
+Austin Ekeler,RB,WAS,100,4
+Cooper Kupp,WR,SEA,101,4
+Rashid Shaheed,WR,NO,102,4
+Tyler Warren,TE,IND,103,4
+Evan Engram,TE,DEN,104,4
+Chris Godwin Jr.,WR,TB,105,4
+Patrick Mahomes II,QB,KC,106,4
+Bo Nix,QB,DEN,107,4
+Brock Purdy,QB,SF,108,4
+Baker Mayfield,QB,TB,109,4
+Javonte Williams,RB,DAL,110,4
+Michael Pittman Jr.,WR,IND,111,4
+Christian Kirk,WR,HOU,112,4
+Caleb Williams,QB,CHI,113,4
+Dak Prescott,QB,DAL,114,4
+Kyler Murray,QB,ARI,115,4
+Dalton Kincaid,TE,BUF,116,4
+Colston Loveland,TE,CHI,117,4
+Rhamondre Stevenson,RB,NE,118,4
+Jayden Higgins,WR,HOU,119,4
+Luther Burden III,WR,CHI,120,4
+Cam Skattebo,RB,NYG,121,5
+Drake Maye,QB,NE,122,5
+Justin Herbert,QB,LAC,123,5
+Jaydon Blue,RB,DAL,124,5
+Ray Davis,RB,BUF,125,5
+Nick Chubb,RB,HOU,126,5
+Brian Robinson Jr.,RB,SF,127,5
+Dylan Sampson,RB,CLE,128,5
+Tyjae Spears,RB,TEN,129,5
+Darnell Mooney,WR,ATL,130,5
+Brandon Aiyuk,WR,SF,131,5
+Keenan Allen,WR,LAC,132,5
+Rachaad White,RB,TB,133,5
+Quinshon Judkins,RB,CLE,134,5
+Will Shipley,RB,PHI,135,5
+J.J. McCarthy,QB,MIN,136,5
+Justin Fields,QB,NYJ,137,5
+Rico Dowdle,RB,CAR,138,5
+Tyler Allgeier,RB,ATL,139,5
+Ollie Gordon II,RB,MIA,140,5
+Woody Marks,RB,HOU,141,6
+Dallas Goedert,TE,PHI,142,6
+Jake Ferguson,TE,DAL,143,6
+Rashod Bateman,WR,BAL,144,6
+Marvin Mims Jr.,WR,DEN,145,6
+Cedric Tillman,WR,CLE,146,6
+Kyle Pitts Sr.,TE,ATL,147,6
+Kyle Williams,WR,NE,148,6
+Chig Okonkwo,TE,TEN,149,6
+Kyle Monangai,RB,CHI,150,6
+Joe Mixon,RB,HOU,151,6
+DeMario Douglas,WR,NE,152,6
+Chris Rodriguez Jr.,RB,WAS,153,6
+Jordan Love,QB,GB,154,6
+Jared Goff,QB,DET,155,6
+C.J. Stroud,QB,HOU,156,6
+Joshua Palmer,WR,BUF,157,6
+Tre' Harris,WR,LAC,158,6
+Wan'Dale Robinson,WR,NYG,159,6
+Zach Ertz,TE,WAS,160,6`;
+
+      function usePlayers(list) {
+        players = list.slice();
+        renderBoard();
+      }
+
+      // Preload the sample by default
+      document.addEventListener("DOMContentLoaded", () => {
+        const list = parseCSV(SAMPLE);
+        usePlayers(list);
+      });
+
+      // Event delegation for drafted/mine checkboxes
+      document.addEventListener("change", (e) => {
+        const idx = e.target.getAttribute("data-idx");
+        if (idx !== null && idx !== undefined) {
+          const i = Number(idx);
+          if (e.target.classList.contains("drafted")) {
+            players[i].drafted = e.target.checked;
+          } else if (e.target.classList.contains("mine")) {
+            players[i].mine = e.target.checked;
+            // If this is a new pick of mine, advance to next round
+            if (e.target.checked) {
+              // Check if we should advance to next round
+              const myPicks = players.filter((p) => p.mine).length;
+              const expectedRound = Math.ceil(myPicks / 1); // Since only you are picking
+              if (expectedRound > currentRound) {
+                currentRound = expectedRound;
+                updateDraftInfo();
+              }
+            }
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
