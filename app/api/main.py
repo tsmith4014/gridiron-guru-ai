@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.models.database import get_db
@@ -25,11 +26,23 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Initialize ML model
 ml_model = DraftMLModel()
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve the main HTML file"""
     with open("app/frontend/enhanced_draft_assistant.html", "r") as f:
-        return {"html": f.read()}
+        return HTMLResponse(content=f.read())
+
+@app.get("/draft", response_class=HTMLResponse)
+async def draft_page():
+    """Serve the draft assistant page"""
+    with open("app/frontend/enhanced_draft_assistant.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/legacy", response_class=HTMLResponse)
+async def legacy_page():
+    """Serve the legacy draft assistant page"""
+    with open("app/frontend/fixed_draft_assistant_prepopulated.html", "r") as f:
+        return HTMLResponse(content=f.read())
 
 @app.post("/api/recommend", response_model=DraftResponse)
 async def get_recommendations(
@@ -107,4 +120,4 @@ async def update_model(db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

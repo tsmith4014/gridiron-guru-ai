@@ -31,9 +31,4 @@ setup(
     package_data={
         "app": ["static/*", "frontend/*"],
     },
-    entry_points={
-        "console_scripts": [
-            "gridiron-guru=main:main",
-        ],
-    },
 )
