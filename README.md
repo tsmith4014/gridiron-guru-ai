@@ -16,10 +16,11 @@
 - **Real-time scoring** with confidence intervals and risk assessment
 
 ### 🧠 **Intelligent Logic**
-- **Tier consideration** - Tier 1 players get significant bonuses
-- **Late-round strategy** - K/DST priority in rounds 12+
+- **Critical Need Prioritization** - Unfilled positions (QB, TE, K, DST) get extremely high priority
+- **Roster Constraint Enforcement** - Ensures 1 QB, 2 RB, 2 WR, 1 TE, 1 K, 1 DST minimum requirements
+- **Late-round strategy** - K/DST priority in rounds 14-16 (fixed timing)
 - **Handcuff logic** - Backup RB recommendations for roster security
-- **Value vs. need balance** - Prevents passing on steals
+- **Value vs. need balance** - Prevents passing on steals while filling critical needs
 - **Position scarcity** - Adjusts for dwindling position depth
 - **Round-specific strategies** - Different approaches for early/mid/late rounds
 
@@ -36,6 +37,13 @@
 - ADP rankings from major platforms
 - Tier classifications (1-6)
 - Team assignments and position data
+
+### 🆕 **Recent Improvements (v1.1.0)**
+- **Fixed DST/K Priority** - Now properly required and drafted in rounds 14-16
+- **Enhanced Critical Need Scoring** - QB/TE get 500/350 base scores vs 20 for depth
+- **Improved Draft Status Display** - Reactive UI that only shows after slot selection
+- **Better Roster Constraint Logic** - Enforces 9 starters + 7 bench spots correctly
+- **Fixed Turn-Based Draft Flow** - Proper round advancement and pick tracking
 
 ## 🏗️ Architecture
 
@@ -150,13 +158,20 @@ POST /api/update-model
 ### **3. Final Scoring Formula**
 ```
 Total Score = (ML Score × 0.4) +
-              (Need Score × 0.3) +
-              (Risk Score × 0.15) +
-              (Handcuff Score × 0.1) +
+              (Need Score × 0.4) +
+              (Risk Score × 0.1) +
+              (Handcuff Score × 0.05) +
               (Round Score × 0.05)
+
+Critical Need Bonus: ×2.0 for unfilled positions
 ```
 
 ## 🎯 Usage Examples
+
+### **Roster Requirements**
+- **Starters (9)**: 1 QB, 2 RB, 2 WR, 1 TE, 1 K, 1 DST, 1 FLEX
+- **Bench (7)**: Additional depth at RB/WR/TE/QB
+- **Total**: 16 players exactly
 
 ### **Round 1-3: Best Available**
 - ML models identify elite players
@@ -174,9 +189,10 @@ Total Score = (ML Score × 0.4) +
 - Prepare for late rounds
 
 ### **Round 12-16: Needs & K/DST**
-- Prioritize filling needs
-- High priority for K/DST
-- Target high-upside sleepers
+- **Rounds 12-13**: Fill remaining critical needs (QB, TE if missing)
+- **Round 14**: K becomes available and gets high priority
+- **Round 15**: DST becomes available and gets high priority
+- **Round 16**: Bench depth and optimization
 
 ## 🔧 Configuration
 

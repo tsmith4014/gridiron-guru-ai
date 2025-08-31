@@ -462,6 +462,38 @@
           <button class="btn btn-primary" onclick="exportDraft()">
             Export Draft
           </button>
+          <button class="btn btn-warning" onclick="simulateOtherTeamPick()">
+            Simulate Other Team Pick
+          </button>
+          <button class="btn btn-info" onclick="testJavaScript()">
+            Test JavaScript
+          </button>
+        </div>
+
+        <!-- Draft Status Display -->
+        <div id="draftStatus" style="display: none"></div>
+
+        <!-- Draft Warnings -->
+        <div id="draftWarnings" style="display: none"></div>
+
+        <!-- Initial Message -->
+        <div
+          id="initialMessage"
+          style="
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+          "
+        >
+          <h4 style="margin: 0 0 10px 0; color: #1976d2">
+            🏈 Welcome to the Draft Assistant!
+          </h4>
+          <p style="margin: 0; color: #1565c0">
+            Please select your draft slot (1-10) above to start tracking your
+            draft position and get recommendations.
+          </p>
         </div>
       </div>
 
@@ -492,14 +524,32 @@
     <script>
       let players = [];
       let draftHistory = [];
+      let draftSlot = 1;
       let currentRound = 1;
       let currentPick = 1;
-      let draftSlot = 1;
+      let totalPicksMade = 0; // Track all picks made by all teams
 
       // Initialize the app
       document.addEventListener("DOMContentLoaded", function () {
+        console.log("🔍 DEBUG: DOM Content Loaded - Initializing app");
+
+        // Set initial values
+        document.getElementById("draftSlot").value = draftSlot;
+        document.getElementById("currentRound").value = 1;
+        document.getElementById("currentPick").value = 1;
+
+        console.log(
+          "🔍 DEBUG: Initial values set - draftSlot:",
+          draftSlot,
+          "currentRound: 1, currentPick: 1"
+        );
+        console.log("🔍 DEBUG: About to call loadPlayers()");
+
         loadPlayers();
-        updateDraftInfo();
+        // Don't show draft status until user selects a slot
+        // updateDraftInfo();
+
+        console.log("🔍 DEBUG: App initialization complete");
       });
 
       // Load players from backend
@@ -520,13 +570,8 @@
 
       // Get ML recommendations
       async function getRecommendations() {
-        const draftSlot = parseInt(document.getElementById("draftSlot").value);
-        const currentRound = parseInt(
-          document.getElementById("currentRound").value
-        );
-        const currentPick = parseInt(
-          document.getElementById("currentPick").value
-        );
+        const { draftSlot, currentRound, currentPick } =
+          getCurrentDraftValues();
 
         if (!draftSlot || !currentRound || !currentPick) {
           alert("Please fill in all fields");
@@ -534,28 +579,75 @@
         }
 
         try {
-          // Get available players (not drafted)
+          // Get available players (not drafted AND not mine)
           const draftedPlayerNames = getDraftedPlayers();
+          const myPlayerNames = getMyPlayers();
+          const unavailablePlayerNames = [
+            ...draftedPlayerNames,
+            ...myPlayerNames,
+          ];
+
           const availablePlayers = players.filter(
-            (p) => !draftedPlayerNames.includes(p.name)
+            (p) => !unavailablePlayerNames.includes(p.name)
           );
 
           // Get current roster (my players)
-          const myPlayerNames = getMyPlayers();
           const currentRoster = players.filter((p) =>
             myPlayerNames.includes(p.name)
           );
 
-          // Calculate roster counts
+          console.log("🔍 DEBUG: Drafted players:", draftedPlayerNames);
+          console.log("🔍 DEBUG: My players:", myPlayerNames);
+          console.log("🔍 DEBUG: Unavailable players:", unavailablePlayerNames);
+          console.log(
+            "🔍 DEBUG: Available players count:",
+            availablePlayers.length
+          );
+          console.log(
+            "🔍 DEBUG: First few available players:",
+            availablePlayers.slice(0, 5).map((p) => p.name)
+          );
+
+          // Calculate roster counts with proper flex logic
+          const qbCount = currentRoster.filter(
+            (p) => p.position === "QB"
+          ).length;
+          const rbCount = currentRoster.filter(
+            (p) => p.position === "RB"
+          ).length;
+          const wrCount = currentRoster.filter(
+            (p) => p.position === "WR"
+          ).length;
+          const teCount = currentRoster.filter(
+            (p) => p.position === "TE"
+          ).length;
+          const kCount = currentRoster.filter((p) => p.position === "K").length;
+          const dstCount = currentRoster.filter(
+            (p) => p.position === "DST"
+          ).length;
+
+          // Calculate flex eligible (RB/WR/TE beyond starters)
+          const flexEligible = Math.max(
+            0,
+            rbCount - 2 + (wrCount - 2) + (teCount - 1)
+          );
+
+          // Calculate bench used
+          const starters = 1 + 2 + 2 + 1 + 1 + 1; // QB + 2 RB + 2 WR + TE + K + DST
+          const benchUsed = Math.max(
+            0,
+            currentRoster.length - starters - flexEligible
+          );
+
           const rosterCounts = {
-            QB: currentRoster.filter((p) => p.position === "QB").length,
-            RB: currentRoster.filter((p) => p.position === "RB").length,
-            WR: currentRoster.filter((p) => p.position === "WR").length,
-            TE: currentRoster.filter((p) => p.position === "TE").length,
-            K: currentRoster.filter((p) => p.position === "K").length,
-            DST: currentRoster.filter((p) => p.position === "DST").length,
-            FLEX: 0, // Will be calculated by backend
-            BENCH: currentRoster.length,
+            QB: qbCount,
+            RB: rbCount,
+            WR: wrCount,
+            TE: teCount,
+            K: kCount,
+            DST: dstCount,
+            FLEX: flexEligible,
+            BENCH: benchUsed,
           };
 
           const response = await fetch("/api/recommend", {
@@ -720,14 +812,7 @@
                                 <strong>Reasoning:</strong> ${rec.reasoning}
                             </div>
                             
-                            <div class="status-buttons">
-                                <button class="status-btn drafted" onclick="markDrafted('${
-                                  rec.player.name
-                                }')">Drafted</button>
-                                <button class="status-btn mine" onclick="markMine('${
-                                  rec.player.name
-                                }')">Mine</button>
-                            </div>
+
                         </div>
                     `;
           });
@@ -769,6 +854,7 @@
           const isMine = draftHistory.some(
             (p) => p.name === player.name && p.status === "mine"
           );
+          const isMyTurn = isMyTurnToPick();
 
           html += `
                     <div class="player-row ${isDrafted ? "drafted" : ""} ${
@@ -779,14 +865,18 @@
                         <div>${player.adp}</div>
                         <div>${player.tier}</div>
                         <div class="status-buttons">
-                            <button class="status-btn drafted" onclick="markDrafted('${
+                            <button class="status-btn drafted" data-player="${
                               player.name
-                            }')" ${isDrafted ? "disabled" : ""}>
+                            }" data-action="drafted" ${
+            isDrafted ? "disabled" : ""
+          }>
                                 ${isDrafted ? "✓" : "Drafted"}
                             </button>
-                            <button class="status-btn mine" onclick="markMine('${
+                            <button class="status-btn mine" data-player="${
                               player.name
-                            }')" ${isMine ? "disabled" : ""}>
+                            }" data-action="mine" ${isMine ? "disabled" : ""} ${
+            !isMyTurn ? "disabled" : ""
+          }>
                                 ${isMine ? "✓" : "Mine"}
                             </button>
                         </div>
@@ -809,47 +899,56 @@
         }
 
         // Show success feedback
-        showFeedback(`${playerName} marked as DRAFTED`, 'success');
-        
+        showFeedback(`${playerName} marked as DRAFTED`, "success");
+
         renderDraftBoard();
         updateRoster();
         updateDraftInfo();
-        
-        // Refresh recommendations to exclude drafted player
-        if (document.getElementById('currentRound').value && 
-            document.getElementById('currentPick').value && 
-            document.getElementById('draftSlot').value) {
-          getRecommendations();
-        }
       }
 
       // Mark player as mine
       function markMine(playerName) {
+        console.log(`🔍 DEBUG: Marking ${playerName} as MINE`);
+
+        // Check if it's your turn to pick
+        if (!isMyTurnToPick()) {
+          showFeedback(
+            "❌ Not your turn to pick yet! Wait for other teams to draft.",
+            "error"
+          );
+          return;
+        }
+
         const existingIndex = draftHistory.findIndex(
           (p) => p.name === playerName
         );
         if (existingIndex >= 0) {
           draftHistory[existingIndex].status = "mine";
+          console.log(`🔍 DEBUG: Updated existing player status to mine`);
         } else {
           draftHistory.push({ name: playerName, status: "mine" });
+          console.log(`🔍 DEBUG: Added new player to draft history`);
         }
 
+        // Advance the draft (your pick is made)
+        totalPicksMade++;
+        advanceDraft();
+
+        console.log(`🔍 DEBUG: Current draft history:`, draftHistory);
+        console.log(
+          `🔍 DEBUG: My players count:`,
+          draftHistory.filter((p) => p.status === "mine").length
+        );
+
         // Show success feedback
-        showFeedback(`${playerName} added to YOUR ROSTER`, 'success');
-        
+        showFeedback(`${playerName} added to YOUR ROSTER`, "success");
+
         renderDraftBoard();
         updateRoster();
         updateDraftInfo();
-        
-        // Refresh recommendations to exclude drafted player
-        if (document.getElementById('currentRound').value && 
-            document.getElementById('currentPick').value && 
-            document.getElementById('draftSlot').value) {
-          getRecommendations();
-        }
       }
 
-      // Update roster display
+      // Update roster display with proper roster structure
       function updateRoster() {
         const container = document.getElementById("roster");
         const myPlayers = draftHistory.filter((p) => p.status === "mine");
@@ -860,31 +959,296 @@
           return;
         }
 
-        let html = "<h4>Your Picks:</h4>";
-        myPlayers.forEach((player) => {
-          const playerData = players.find((p) => p.name === player.name);
-          if (playerData) {
-            html += `
-                        <div style="padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 8px;">
-                            <strong>${playerData.name}</strong> (${playerData.position}) - ${playerData.team}
-                        </div>
-                    `;
+        // Get player data and organize by position
+        const rosterData = myPlayers
+          .map((player) => {
+            return players.find((p) => p.name === player.name);
+          })
+          .filter(Boolean);
+
+        // Count positions
+        const qbCount = rosterData.filter((p) => p.position === "QB").length;
+        const rbCount = rosterData.filter((p) => p.position === "RB").length;
+        const wrCount = rosterData.filter((p) => p.position === "WR").length;
+        const teCount = rosterData.filter((p) => p.position === "TE").length;
+        const kCount = rosterData.filter((p) => p.position === "K").length;
+        const dstCount = rosterData.filter((p) => p.position === "DST").length;
+
+        // Calculate flex eligible
+        const flexEligible = Math.max(
+          0,
+          rbCount - 2 + (wrCount - 2) + (teCount - 1)
+        );
+
+        // Calculate bench used
+        const starters = 1 + 2 + 2 + 1 + 1 + 1; // QB + 2 RB + 2 WR + TE + K + DST
+        const benchUsed = Math.max(
+          0,
+          rosterData.length - starters - flexEligible
+        );
+
+        let html = "<h4>Your Roster Structure:</h4>";
+
+        // Show position counts
+        html += `
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+              <div><strong>QB:</strong> ${qbCount}/1 ${
+          qbCount >= 1 ? "✅" : "❌"
+        }</div>
+              <div><strong>RB:</strong> ${rbCount}/2 ${
+          rbCount >= 2 ? "✅" : "❌"
+        }</div>
+              <div><strong>WR:</strong> ${wrCount}/2 ${
+          wrCount >= 2 ? "✅" : "❌"
+        }</div>
+              <div><strong>TE:</strong> ${teCount}/1 ${
+          teCount >= 1 ? "✅" : "❌"
+        }</div>
+              <div><strong>K:</strong> ${kCount}/1 ${
+          kCount >= 1 ? "✅" : "❌"
+        }</div>
+              <div><strong>DST:</strong> ${dstCount}/1 ${
+          dstCount >= 1 ? "✅" : "❌"
+        }</div>
+            </div>
+            <div style="margin-top: 10px;">
+              <strong>Flex Eligible:</strong> ${flexEligible} | <strong>Bench Used:</strong> ${benchUsed}/7
+            </div>
+          </div>
+        `;
+
+        // Show players by position
+        html += "<h5>Players by Position:</h5>";
+
+        const positions = ["QB", "RB", "WR", "TE", "K", "DST"];
+        positions.forEach((pos) => {
+          const posPlayers = rosterData.filter((p) => p.position === pos);
+          if (posPlayers.length > 0) {
+            html += `<div style="margin: 10px 0;"><strong>${pos}:</strong>`;
+            posPlayers.forEach((player) => {
+              html += `
+                <div style="padding: 8px; margin: 3px 0; background: #e9ecef; border-radius: 5px; display: inline-block; margin-right: 10px;">
+                  ${player.name} (${player.team}) - ADP ${player.adp}
+                </div>
+              `;
+            });
+            html += "</div>";
           }
         });
 
         container.innerHTML = html;
       }
 
+      // Helper function to get current values from HTML inputs
+      function getCurrentDraftValues() {
+        return {
+          draftSlot: parseInt(document.getElementById("draftSlot").value) || 1,
+          currentRound: currentRound,
+          currentPick: currentPick,
+        };
+      }
+
+      // Check if it's your turn to pick
+      function isMyTurnToPick() {
+        // Calculate whose turn it is based on total picks made
+        const pickNumber = totalPicksMade + 1; // Next pick number
+
+        console.log("🔍 DEBUG: isMyTurnToPick() called");
+        console.log("🔍 DEBUG: totalPicksMade:", totalPicksMade);
+        console.log("🔍 DEBUG: currentRound:", currentRound);
+        console.log("🔍 DEBUG: draftSlot:", draftSlot);
+        console.log("🔍 DEBUG: pickNumber:", pickNumber);
+
+        if (currentRound % 2 === 1) {
+          // Odd rounds: 1, 3, 5, 7, 9, 11, 13, 15
+          // In odd rounds, you pick in the first half (picks 1-10, 21-30, 41-50, etc.)
+          const expectedPick = (currentRound - 1) * 10 + draftSlot;
+          console.log("🔍 DEBUG: Odd round - expectedPick:", expectedPick);
+          const result = pickNumber === expectedPick;
+          console.log("🔍 DEBUG: isMyTurn result:", result);
+          return result;
+        } else {
+          // Even rounds: 2, 4, 6, 8, 10, 12, 14, 16
+          // In even rounds, you pick in the second half (picks 11-20, 31-40, 51-60, etc.)
+          const expectedPick = (currentRound - 1) * 10 + (11 - draftSlot);
+          console.log("🔍 DEBUG: Even round - expectedPick:", expectedPick);
+          const result = pickNumber === expectedPick;
+          console.log("🔍 DEBUG: isMyTurn result:", result);
+          return result;
+        }
+      }
+
+      // Advance the draft after a pick is made
+      function advanceDraft() {
+        // Calculate new round and pick
+        const newRound = Math.floor(totalPicksMade / 10) + 1;
+        const newPick = totalPicksMade + 1;
+
+        // Update global state
+        currentRound = newRound;
+        currentPick = newPick;
+
+        // Update HTML inputs
+        const roundInput = document.getElementById("currentRound");
+        const pickInput = document.getElementById("currentPick");
+
+        if (roundInput) roundInput.value = currentRound;
+        if (pickInput) pickInput.value = currentPick;
+
+        console.log(
+          `🔍 DEBUG: Draft advanced - Round: ${currentRound}, Pick: ${currentPick}, Total Picks: ${totalPicksMade}`
+        );
+      }
+
       // Update draft info
       function updateDraftInfo() {
         const myPlayers = draftHistory.filter((p) => p.status === "mine");
-        const currentRound = Math.ceil(myPlayers.length / 10) + 1;
 
-        document.getElementById("currentRound").value = currentRound;
+        // Calculate next pick for planning
+        const draftSlot = parseInt(document.getElementById("draftSlot").value);
+        const nextPick = calculateNextPick(currentRound, draftSlot);
 
-        // Calculate current pick based on draft slot and round
-        const currentPick = calculateCurrentPick();
-        document.getElementById("currentPick").value = currentPick;
+        // Update the display to show current status
+        updateDraftStatusDisplay(
+          currentRound,
+          currentPick,
+          nextPick,
+          myPlayers.length
+        );
+
+        // Validate draft state
+        validateDraftState(myPlayers, currentRound);
+
+        console.log(
+          `🔍 DEBUG: Draft Info Updated - My Players: ${myPlayers.length}, Round: ${currentRound}, Pick: ${currentPick}, Next: ${nextPick}`
+        );
+      }
+
+      // Validate draft state and show warnings
+      function validateDraftState(myPlayers, currentRound) {
+        const warnings = [];
+
+        // Get actual player data for position checking
+        const myPlayerData = myPlayers
+          .map((playerName) => players.find((p) => p.name === playerName))
+          .filter(Boolean);
+
+        // Check for missing critical positions
+        const positionCounts = {
+          QB: myPlayerData.filter((p) => p.position === "QB").length,
+          RB: myPlayerData.filter((p) => p.position === "RB").length,
+          WR: myPlayerData.filter((p) => p.position === "WR").length,
+          TE: myPlayerData.filter((p) => p.position === "TE").length,
+          K: myPlayerData.filter((p) => p.position === "K").length,
+          DST: myPlayerData.filter((p) => p.position === "DST").length,
+        };
+
+        if (currentRound >= 8 && positionCounts.QB === 0) {
+          warnings.push("⚠️ No QB selected yet - consider drafting one soon");
+        }
+        if (currentRound >= 6 && positionCounts.RB < 2) {
+          warnings.push("⚠️ Need more RBs - consider drafting RB depth");
+        }
+        if (currentRound >= 6 && positionCounts.WR < 2) {
+          warnings.push("⚠️ Need more WRs - consider drafting WR depth");
+        }
+        if (currentRound >= 10 && positionCounts.TE === 0) {
+          warnings.push("⚠️ No TE selected yet - consider drafting one");
+        }
+        if (currentRound >= 12 && positionCounts.K === 0) {
+          warnings.push("⚠️ No K selected yet - consider drafting one");
+        }
+        if (currentRound >= 12 && positionCounts.DST === 0) {
+          warnings.push("⚠️ No DST selected yet - consider drafting one");
+        }
+
+        // Show warnings if any
+        if (warnings.length > 0) {
+          showDraftWarnings(warnings);
+        }
+      }
+
+      // Show draft warnings
+      function showDraftWarnings(warnings) {
+        const warningsDiv = document.getElementById("draftWarnings");
+        if (!warningsDiv) return;
+
+        let warningsHtml = `
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #ffc107;">
+            <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Draft Warnings</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+        `;
+
+        warnings.forEach((warning) => {
+          warningsHtml += `<li style="margin: 5px 0;">${warning}</li>`;
+        });
+
+        warningsHtml += `</ul></div>`;
+        warningsDiv.innerHTML = warningsHtml;
+      }
+
+      // Calculate next pick number
+      function calculateNextPick(currentRound, draftSlot) {
+        const nextRound = currentRound + 1;
+        if (nextRound > 16) return null; // End of draft
+
+        if (nextRound % 2 === 1) {
+          return (nextRound - 1) * 10 + draftSlot;
+        } else {
+          return (nextRound - 1) * 10 + (11 - draftSlot);
+        }
+      }
+
+      // Update the draft status display
+      function updateDraftStatusDisplay(
+        currentRound,
+        currentPick,
+        nextPick,
+        totalPicks
+      ) {
+        const statusDiv = document.getElementById("draftStatus");
+        if (!statusDiv) return;
+
+        // Calculate your current pick number for this round
+        const currentPickNumber = calculateCurrentPick();
+
+        // Check if it's your turn
+        const isMyTurn = isMyTurnToPick();
+        const turnStatus = isMyTurn
+          ? "✅ YOUR TURN TO PICK!"
+          : "⏳ Waiting for other teams...";
+        const turnColor = isMyTurn ? "#27ae60" : "#f39c12";
+
+        let statusHtml = `
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #3498db;">
+            <h4 style="margin: 0 0 10px 0; color: #2c3e50;">📊 Draft Status</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+              <div>
+                <strong>Current Round:</strong><br>
+                <span style="color: #e74c3c; font-size: 1.2em;">${currentRound}</span>
+              </div>
+              <div>
+                <strong>Your Pick This Round:</strong><br>
+                <span style="color: #27ae60; font-size: 1.2em;">#${currentPickNumber}</span>
+              </div>
+              <div>
+                <strong>Next Pick Overall:</strong><br>
+                <span style="color: #9b59b6; font-size: 1.2em;">#${currentPick}</span>
+              </div>
+              <div>
+                <strong>Your Turn:</strong><br>
+                <span style="color: ${turnColor}; font-size: 1.2em;">${turnStatus}</span>
+              </div>
+              <div>
+                <strong>Total Picks Made:</strong><br>
+                <span style="color: #9b59b6; font-size: 1.2em;">${totalPicksMade}</span>
+              </div>
+            </div>
+          </div>
+        `;
+
+        statusDiv.innerHTML = statusHtml;
       }
 
       // Calculate current pick
@@ -894,13 +1258,22 @@
           document.getElementById("currentRound").value
         );
 
+        // Calculate your pick number for the current round
+        let myPickNumber;
         if (currentRound % 2 === 1) {
           // Odd rounds: 1, 3, 5, 7, 9, 11, 13, 15
-          return (currentRound - 1) * 10 + draftSlot;
+          // In odd rounds, you pick in the first half (picks 1-10, 21-30, 41-50, etc.)
+          myPickNumber = (currentRound - 1) * 10 + draftSlot;
         } else {
           // Even rounds: 2, 4, 6, 8, 10, 12, 14, 16
-          return (currentRound - 1) * 10 + (11 - draftSlot);
+          // In even rounds, you pick in the second half (picks 11-20, 31-40, 51-60, etc.)
+          myPickNumber = (currentRound - 1) * 10 + (11 - draftSlot);
         }
+
+        console.log(
+          `🔍 DEBUG: Pick Calculation - Round: ${currentRound}, Slot: ${draftSlot}, Pick: ${myPickNumber}`
+        );
+        return myPickNumber;
       }
 
       // Get drafted players for API
@@ -918,8 +1291,8 @@
       }
 
       // Show user feedback
-      function showFeedback(message, type = 'info') {
-        const feedbackDiv = document.createElement('div');
+      function showFeedback(message, type = "info") {
+        const feedbackDiv = document.createElement("div");
         feedbackDiv.className = `feedback feedback-${type}`;
         feedbackDiv.textContent = message;
         feedbackDiv.style.cssText = `
@@ -933,21 +1306,21 @@
           z-index: 1000;
           animation: slideIn 0.3s ease-out;
         `;
-        
+
         // Set background color based on type
-        if (type === 'success') {
-          feedbackDiv.style.backgroundColor = '#28a745';
-        } else if (type === 'error') {
-          feedbackDiv.style.backgroundColor = '#dc3545';
+        if (type === "success") {
+          feedbackDiv.style.backgroundColor = "#28a745";
+        } else if (type === "error") {
+          feedbackDiv.style.backgroundColor = "#dc3545";
         } else {
-          feedbackDiv.style.backgroundColor = '#17a2b8';
+          feedbackDiv.style.backgroundColor = "#17a2b8";
         }
-        
+
         document.body.appendChild(feedbackDiv);
-        
+
         // Remove after 3 seconds
         setTimeout(() => {
-          feedbackDiv.style.animation = 'slideOut 0.3s ease-in';
+          feedbackDiv.style.animation = "slideOut 0.3s ease-in";
           setTimeout(() => {
             if (feedbackDiv.parentNode) {
               feedbackDiv.parentNode.removeChild(feedbackDiv);
@@ -961,6 +1334,9 @@
       function resetDraft() {
         if (confirm("Are you sure you want to reset the entire draft?")) {
           draftHistory = [];
+          totalPicksMade = 0;
+          currentRound = 1;
+          currentPick = 1;
           renderDraftBoard();
           updateRoster();
           updateDraftInfo();
@@ -969,11 +1345,55 @@
         }
       }
 
+      // Test if JavaScript is working
+      function testJavaScript() {
+        console.log("🔍 DEBUG: Test JavaScript function called!");
+        alert("JavaScript is working! Console should show debug messages.");
+        console.log(
+          "🔍 DEBUG: Current state - totalPicksMade:",
+          totalPicksMade,
+          "currentRound:",
+          currentRound,
+          "currentPick:",
+          currentPick
+        );
+      }
+
+      // Simulate another team making a pick
+      function simulateOtherTeamPick() {
+        // Add a random player as "drafted" by another team
+        const availablePlayers = players.filter(
+          (p) => !draftHistory.some((dh) => dh.name === p.name)
+        );
+
+        if (availablePlayers.length > 0) {
+          const randomPlayer =
+            availablePlayers[
+              Math.floor(Math.random() * availablePlayers.length)
+            ];
+          draftHistory.push({ name: randomPlayer.name, status: "drafted" });
+
+          // Advance the draft
+          totalPicksMade++;
+          advanceDraft();
+
+          showFeedback(
+            `🏈 ${randomPlayer.name} drafted by another team`,
+            "info"
+          );
+
+          renderDraftBoard();
+          updateDraftInfo();
+        }
+      }
+
       function exportDraft() {
+        const { draftSlot, currentRound, currentPick } =
+          getCurrentDraftValues();
         const data = {
-          draftSlot: parseInt(document.getElementById("draftSlot").value),
-          currentRound: parseInt(document.getElementById("currentRound").value),
-          currentPick: parseInt(document.getElementById("currentPick").value),
+          draftSlot: draftSlot,
+          currentRound: currentRound,
+          currentPick: currentPick,
           draftHistory: draftHistory,
           timestamp: new Date().toISOString(),
         };
@@ -992,7 +1412,55 @@
       // Auto-update draft info when draft slot changes
       document
         .getElementById("draftSlot")
-        .addEventListener("change", updateDraftInfo);
+        .addEventListener("change", function () {
+          draftSlot = parseInt(this.value);
+          if (draftSlot >= 1 && draftSlot <= 10) {
+            updateDraftInfo();
+            // Show draft status once slot is selected
+            document.getElementById("draftStatus").style.display = "block";
+            document.getElementById("draftWarnings").style.display = "block";
+            document.getElementById("initialMessage").style.display = "none";
+          } else {
+            // Hide draft status if invalid slot
+            document.getElementById("draftStatus").style.display = "none";
+            document.getElementById("draftWarnings").style.display = "none";
+            document.getElementById("initialMessage").style.display = "block";
+          }
+        });
+
+      // Also update when current round changes
+      document
+        .getElementById("currentRound")
+        .addEventListener("change", function () {
+          currentRound = parseInt(this.value);
+          updateDraftInfo();
+        });
+
+      // Event delegation for status buttons
+      document.addEventListener("click", function (e) {
+        console.log("🔍 DEBUG: Click event detected on:", e.target);
+        console.log("🔍 DEBUG: Target classes:", e.target.classList);
+        console.log("🔍 DEBUG: Target dataset:", e.target.dataset);
+
+        if (e.target.classList.contains("status-btn")) {
+          console.log("🔍 DEBUG: Status button clicked!");
+          const playerName = e.target.dataset.player;
+          const action = e.target.dataset.action;
+
+          console.log("🔍 DEBUG: Player name:", playerName);
+          console.log("🔍 DEBUG: Action:", action);
+
+          if (action === "drafted") {
+            console.log("🔍 DEBUG: Calling markDrafted for:", playerName);
+            markDrafted(playerName);
+          } else if (action === "mine") {
+            console.log("🔍 DEBUG: Calling markMine for:", playerName);
+            markMine(playerName);
+          }
+        } else {
+          console.log("🔍 DEBUG: Click was not on a status button");
+        }
+      });
     </script>
   </body>
 </html>

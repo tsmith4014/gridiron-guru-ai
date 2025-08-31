@@ -1,1 +1,1 @@
-# Data models package for Gridiron Guru AI
+# Models package for Gridiron Guru AI
