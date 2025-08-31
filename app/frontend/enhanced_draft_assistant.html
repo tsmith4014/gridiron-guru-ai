@@ -402,6 +402,29 @@
           grid-template-columns: 1fr;
           gap: 5px;
         }
+
+        /* Feedback animations */
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideOut {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
       }
     </style>
   </head>
@@ -785,9 +808,19 @@
           draftHistory.push({ name: playerName, status: "drafted" });
         }
 
+        // Show success feedback
+        showFeedback(`${playerName} marked as DRAFTED`, 'success');
+        
         renderDraftBoard();
         updateRoster();
         updateDraftInfo();
+        
+        // Refresh recommendations to exclude drafted player
+        if (document.getElementById('currentRound').value && 
+            document.getElementById('currentPick').value && 
+            document.getElementById('draftSlot').value) {
+          getRecommendations();
+        }
       }
 
       // Mark player as mine
@@ -801,9 +834,19 @@
           draftHistory.push({ name: playerName, status: "mine" });
         }
 
+        // Show success feedback
+        showFeedback(`${playerName} added to YOUR ROSTER`, 'success');
+        
         renderDraftBoard();
         updateRoster();
         updateDraftInfo();
+        
+        // Refresh recommendations to exclude drafted player
+        if (document.getElementById('currentRound').value && 
+            document.getElementById('currentPick').value && 
+            document.getElementById('draftSlot').value) {
+          getRecommendations();
+        }
       }
 
       // Update roster display
@@ -872,6 +915,45 @@
         return draftHistory
           .filter((p) => p.status === "mine")
           .map((p) => p.name);
+      }
+
+      // Show user feedback
+      function showFeedback(message, type = 'info') {
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.className = `feedback feedback-${type}`;
+        feedbackDiv.textContent = message;
+        feedbackDiv.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          padding: 15px 20px;
+          border-radius: 8px;
+          color: white;
+          font-weight: 600;
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        
+        // Set background color based on type
+        if (type === 'success') {
+          feedbackDiv.style.backgroundColor = '#28a745';
+        } else if (type === 'error') {
+          feedbackDiv.style.backgroundColor = '#dc3545';
+        } else {
+          feedbackDiv.style.backgroundColor = '#17a2b8';
+        }
+        
+        document.body.appendChild(feedbackDiv);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+          feedbackDiv.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => {
+            if (feedbackDiv.parentNode) {
+              feedbackDiv.parentNode.removeChild(feedbackDiv);
+            }
+          }, 300);
+        }, 3000);
       }
 
       // Quick actions (removed unused Top 20/40 functions)

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models.models import DraftRequest, DraftResponse
 from app.ml.ml_logic import DraftMLModel
-from app.ml.draft_logic import DraftLogic
 
 app = FastAPI(title="Gridiron Guru AI - Fantasy Football Draft Assistant", version="1.0.0")
 
@@ -62,15 +61,7 @@ async def get_recommendations(
             teams=request.teams
         )
         
-        # Apply draft logic rules (DISABLED - causing incorrect rankings)
-        # draft_logic = DraftLogic()
-        # final_recommendations = draft_logic.apply_draft_strategy(
-        #     recommendations=recommendations,
-        #     current_round=request.current_round,
-        #     roster_counts=request.roster_counts
-        # )
-        
-        # Use ML recommendations directly without DraftLogic modifications
+        # Use ML recommendations directly
         final_recommendations = recommendations
         
         return DraftResponse(
