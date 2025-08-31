@@ -180,7 +180,8 @@ class DraftMLModel:
     def predict_player_value(self, player: Player) -> float:
         """Predict player value using ML model"""
         try:
-            if player.position in self.models and self.is_trained:
+            # Temporarily force fallback scoring for testing
+            if False and player.position in self.models and self.is_trained:
                 # Prepare features
                 features = np.array([[
                     player.adp,
@@ -197,11 +198,33 @@ class DraftMLModel:
                 prediction = self.models[player.position].predict(features_scaled)[0]
                 return max(0, prediction)
             else:
-                # Fallback to rule-based scoring
-                return 200 - player.adp + (6 - int(player.tier)) * 10
+                # Improved fallback scoring that properly considers ADP vs tier
+                base_score = 200
+                
+                # ADP penalty (higher ADP = lower score)
+                adp_penalty = player.adp * 0.8
+                
+                # Tier bonus (lower tier number = higher score)
+                tier_bonus = (6 - int(player.tier)) * 15
+                
+                # Position-specific adjustments
+                position_multiplier = {
+                    'QB': 0.9,  # QBs get slight penalty in early rounds
+                    'RB': 1.0,  # RBs are baseline
+                    'WR': 1.0,  # WRs are baseline
+                    'TE': 0.95, # TEs get slight penalty
+                    'K': 0.3,   # Kickers heavily penalized early
+                    'DST': 0.3  # DSTs heavily penalized early
+                }
+                
+                # Calculate final score
+                final_score = (base_score - adp_penalty + tier_bonus) * position_multiplier.get(player.position, 1.0)
+                
+                # Ensure reasonable bounds
+                return max(0, min(300, final_score))
         except:
-            # Fallback to rule-based scoring
-            return 200 - player.adp + (6 - int(player.tier)) * 10
+            # Emergency fallback - simple ADP-based scoring
+            return max(0, 200 - player.adp)
     
     def calculate_positional_need(self, player: Player, current_roster: List[Player], current_round: int) -> float:
         """Calculate how much we need this position"""
