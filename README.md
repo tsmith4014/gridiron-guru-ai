@@ -31,6 +31,7 @@
 - **Next round focus** guidance
 - **Real-time draft board** with live updates
 - **Export/import** draft states
+- **ADP Score Tracking** - Monitor total draft value in real-time
 
 ### 📊 **Full 160-Player Database**
 - Complete 2025 NFL draft projections
@@ -44,6 +45,7 @@
 - **Improved Draft Status Display** - Reactive UI that only shows after slot selection
 - **Better Roster Constraint Logic** - Enforces 9 starters + 7 bench spots correctly
 - **Fixed Turn-Based Draft Flow** - Proper round advancement and pick tracking
+- **Added ADP Score Tracking** - Real-time tracking of total ADP points drafted
 
 ## 🏗️ Architecture
 

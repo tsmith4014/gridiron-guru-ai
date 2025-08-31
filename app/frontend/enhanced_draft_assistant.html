@@ -465,9 +465,6 @@
           <button class="btn btn-warning" onclick="simulateOtherTeamPick()">
             Simulate Other Team Pick
           </button>
-          <button class="btn btn-info" onclick="testJavaScript()">
-            Test JavaScript
-          </button>
         </div>
 
         <!-- Draft Status Display -->
@@ -528,6 +525,7 @@
       let currentRound = 1;
       let currentPick = 1;
       let totalPicksMade = 0; // Track all picks made by all teams
+      let totalAdpScore = 0; // Track total ADP points drafted
 
       // Initialize the app
       document.addEventListener("DOMContentLoaded", function () {
@@ -930,6 +928,13 @@
           console.log(`🔍 DEBUG: Added new player to draft history`);
         }
 
+        // Calculate ADP score for this pick
+        const playerData = players.find((p) => p.name === playerName);
+        if (playerData) {
+          totalAdpScore += playerData.adp;
+          console.log(`🔍 DEBUG: Added ${playerData.adp} ADP points. Total: ${totalAdpScore}`);
+        }
+
         // Advance the draft (your pick is made)
         totalPicksMade++;
         advanceDraft();
@@ -1244,6 +1249,10 @@
                 <strong>Total Picks Made:</strong><br>
                 <span style="color: #9b59b6; font-size: 1.2em;">${totalPicksMade}</span>
               </div>
+              <div>
+                <strong>Total ADP Score:</strong><br>
+                <span style="color: #e67e22; font-size: 1.2em;">${totalAdpScore}</span>
+              </div>
             </div>
           </div>
         `;
@@ -1335,6 +1344,7 @@
         if (confirm("Are you sure you want to reset the entire draft?")) {
           draftHistory = [];
           totalPicksMade = 0;
+          totalAdpScore = 0;
           currentRound = 1;
           currentPick = 1;
           renderDraftBoard();
@@ -1345,19 +1355,7 @@
         }
       }
 
-      // Test if JavaScript is working
-      function testJavaScript() {
-        console.log("🔍 DEBUG: Test JavaScript function called!");
-        alert("JavaScript is working! Console should show debug messages.");
-        console.log(
-          "🔍 DEBUG: Current state - totalPicksMade:",
-          totalPicksMade,
-          "currentRound:",
-          currentRound,
-          "currentPick:",
-          currentPick
-        );
-      }
+
 
       // Simulate another team making a pick
       function simulateOtherTeamPick() {
@@ -1372,6 +1370,10 @@
               Math.floor(Math.random() * availablePlayers.length)
             ];
           draftHistory.push({ name: randomPlayer.name, status: "drafted" });
+
+          // Calculate ADP score for simulated pick
+          totalAdpScore += randomPlayer.adp;
+          console.log(`🔍 DEBUG: Simulated pick added ${randomPlayer.adp} ADP points. Total: ${totalAdpScore}`);
 
           // Advance the draft
           totalPicksMade++;
