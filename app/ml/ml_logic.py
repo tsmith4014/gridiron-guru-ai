@@ -89,11 +89,28 @@ class DraftMLModel:
                     'RB': 180, 'WR': 160, 'TE': 120, 'QB': 300, 'K': 140, 'DST': 100
                 }
                 
+                # Improved ADP impact - much steeper penalty for high ADP
+                adp_penalty = (adp / 200) ** 3  # Cubic penalty for even steeper drop
+                
+                # Tier impact - lower tier = higher points
+                tier_bonus = (6 - tier) * 0.15
+                
+                # Position-specific adjustments
+                position_multiplier = {
+                    'QB': 0.9,  # QBs get slight penalty
+                    'RB': 1.0,  # RBs are baseline
+                    'WR': 1.0,  # WRs are baseline
+                    'TE': 0.95, # TEs get slight penalty
+                    'K': 0.7,   # Kickers get penalty
+                    'DST': 0.7  # DSTs get penalty
+                }
+                
                 fantasy_points = (
                     base_points[pos] * 
-                    (1.0 - (adp - 1) / 200) *  # ADP impact
-                    (1.0 + (6 - tier) * 0.1) *  # Tier impact
-                    (1.0 + np.random.normal(0, 0.2))  # Random variation
+                    (1.0 - adp_penalty) *  # Steeper ADP penalty
+                    (1.0 + tier_bonus) *   # Tier bonus
+                    position_multiplier[pos] *  # Position adjustment
+                    (1.0 + np.random.normal(0, 0.15))  # Reduced random variation
                 )
                 
                 data.append({
@@ -122,6 +139,10 @@ class DraftMLModel:
         if not self.is_trained:
             self.train_models()
         
+        print(f"🔍 DEBUG: Getting recommendations for Round {current_round}, Pick {draft_slot}")
+        print(f"🔍 DEBUG: Available players: {len(available_players)}")
+        print(f"🔍 DEBUG: Current roster: {len(current_roster)} players")
+        
         recommendations = []
         
         for player in available_players:
@@ -149,6 +170,29 @@ class DraftMLModel:
                 round_score * 0.05
             )
             
+            # Final ADP validation - heavily penalize high-ADP players in early rounds
+            original_score = total_score
+            if current_round <= 5:
+                if player.adp > 50:
+                    total_score *= 0.5  # 50% penalty for ADP > 50 in first 5 rounds
+                if player.adp > 100:
+                    total_score *= 0.3  # 70% penalty for ADP > 100 in first 5 rounds
+            elif current_round <= 10:
+                if player.adp > 100:
+                    total_score *= 0.6  # 40% penalty for ADP > 100 in rounds 6-10
+            
+            # Debug logging for top players
+            if player.adp <= 10 or total_score > 200:
+                print(f"🔍 DEBUG: {player.name} ({player.position}, ADP {player.adp}, Tier {player.tier})")
+                print(f"   ML Score: {ml_score:.2f}")
+                print(f"   Need Score: {need_score:.2f}")
+                print(f"   Risk Score: {risk_score:.2f}")
+                print(f"   Handcuff Score: {handcuff_score:.2f}")
+                print(f"   Round Score: {round_score:.2f}")
+                print(f"   Original Total: {original_score:.2f}")
+                print(f"   Final Total: {total_score:.2f}")
+                print(f"   ADP Penalty Applied: {original_score - total_score:.2f}")
+            
             # Generate reasoning
             reasoning = self.generate_reasoning(
                 player, ml_score, need_score, risk_score, handcuff_score, round_score
@@ -169,18 +213,27 @@ class DraftMLModel:
                 reasoning=reasoning,
                 confidence=confidence,
                 risk_factor=risk_factor,
-                upside_potential=upside_potential
+                upside_potential=upside_potential,
+                ml_score=ml_score,
+                need_score=need_score,
+                risk_score=risk_score,
+                handcuff_score=handcuff_score,
+                round_score=round_score
             ))
         
         # Sort by total score
         recommendations.sort(key=lambda x: x.score, reverse=True)
+        
+        print(f"🔍 DEBUG: Top 5 recommendations:")
+        for i, rec in enumerate(recommendations[:5]):
+            print(f"   {i+1}. {rec.player.name} ({rec.player.position}, ADP {rec.player.adp}): {rec.score:.2f}")
         
         return recommendations[:10]  # Return top 10
     
     def predict_player_value(self, player: Player) -> float:
         """Predict player value using ML model"""
         try:
-            # Temporarily force fallback scoring for testing
+            # Force fallback scoring for testing - ML models are causing issues
             if False and player.position in self.models and self.is_trained:
                 # Prepare features
                 features = np.array([[
@@ -249,9 +302,15 @@ class DraftMLModel:
         
         # Round-based risk adjustment
         if current_round <= 3:
-            # Early rounds: lower risk tolerance
+            # Early rounds: lower risk tolerance - heavily penalize high ADP players
             if player.adp > 50:
-                base_score -= 20
+                base_score -= 40  # Increased penalty
+            if player.adp > 100:
+                base_score -= 60  # Even bigger penalty for very high ADP
+        elif current_round <= 7:
+            # Mid rounds: moderate risk tolerance
+            if player.adp > 100:
+                base_score -= 30
         elif current_round >= 12:
             # Late rounds: higher risk tolerance
             if player.adp <= 100:
@@ -259,11 +318,16 @@ class DraftMLModel:
         
         # Position-based risk adjustment
         if player.position in ['K', 'DST'] and current_round < 12:
-            base_score -= 30
+            base_score -= 50  # Increased penalty for K/DST too early
         
         # Tier-based risk adjustment
-        tier_risk = (6 - int(player.tier)) * 5
+        tier_risk = (6 - int(player.tier)) * 8  # Increased tier importance
         base_score += tier_risk
+        
+        # ADP vs Round validation
+        expected_pick = current_round * 10  # Rough estimate
+        if player.adp > expected_pick + 30:
+            base_score -= 25  # Penalty for drafting too early
         
         return max(0, base_score)
     

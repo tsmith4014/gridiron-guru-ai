@@ -64,6 +64,13 @@ class Recommendation(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     risk_factor: float = Field(..., ge=0.0, le=1.0)
     upside_potential: float = Field(..., ge=0.0, le=1.0)
+    
+    # Individual score components for debugging
+    ml_score: Optional[float] = None
+    need_score: Optional[float] = None
+    risk_score: Optional[float] = None
+    handcuff_score: Optional[float] = None
+    round_score: Optional[float] = None
 
 class DraftResponse(BaseModel):
     recommendations: List[Recommendation]

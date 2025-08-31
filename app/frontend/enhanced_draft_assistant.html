@@ -340,6 +340,46 @@
             border: 1px solid #c3e6cb;
         }
 
+        .score-breakdown {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 3px solid #3498db;
+        }
+
+        .breakdown-header {
+            font-size: 1em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breakdown-label {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        .breakdown-value {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1em;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -382,8 +422,7 @@
             </div>
             
             <div class="control-group">
-                <button class="btn btn-success" onclick="markTop20Drafted()">Mark Top 20 Drafted</button>
-                <button class="btn btn-warning" onclick="markTop40Drafted()">Mark Top 40 Drafted</button>
+                <!-- Removed unused Top 20/40 buttons -->
                 <button class="btn btn-danger" onclick="resetDraft()">Reset Draft</button>
                 <button class="btn btn-primary" onclick="exportDraft()">Export Draft</button>
             </div>
@@ -549,6 +588,36 @@
                                 </div>
                             </div>
                             
+                            <div class="score-breakdown">
+                                <div class="breakdown-header">Score Breakdown</div>
+                                <div class="breakdown-grid">
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Total Score:</span>
+                                        <span class="breakdown-value">${rec.score.toFixed(1)}</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">ML Score:</span>
+                                        <span class="breakdown-value">${rec.ml_score ? rec.ml_score.toFixed(1) : 'N/A'}</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Need Score:</span>
+                                        <span class="breakdown-value">${rec.need_score ? rec.need_score.toFixed(1) : 'N/A'}</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Risk Score:</span>
+                                        <span class="breakdown-value">${rec.risk_score ? rec.risk_score.toFixed(1) : 'N/A'}</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Handcuff:</span>
+                                        <span class="breakdown-value">${rec.handcuff_score ? rec.handcuff_score.toFixed(1) : 'N/A'}</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Round Adj:</span>
+                                        <span class="breakdown-value">${rec.round_score ? rec.round_score.toFixed(1) : 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="reasoning">
                                 <strong>Reasoning:</strong> ${rec.reasoning}
                             </div>
@@ -708,22 +777,7 @@
                 .map(p => p.name);
         }
 
-        // Quick actions
-        function markTop20Drafted() {
-            for (let i = 0; i < 20; i++) {
-                if (players[i]) {
-                    markDrafted(players[i].name);
-                }
-            }
-        }
-
-        function markTop40Drafted() {
-            for (let i = 0; i < 40; i++) {
-                if (players[i]) {
-                    markDrafted(players[i].name);
-                }
-            }
-        }
+        // Quick actions (removed unused Top 20/40 functions)
 
         function resetDraft() {
             if (confirm('Are you sure you want to reset the entire draft?')) {
