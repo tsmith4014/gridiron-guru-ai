@@ -1,16 +1,12 @@
+import os
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from typing import List, Dict, Any
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import mean_squared_error, r2_score
 import joblib
-import os
-from typing import List, Dict, Any, Tuple
-import warnings
-warnings.filterwarnings('ignore')
 
-from models import Player, RosterCounts, Recommendation
+from app.models.models import Player, Recommendation, RosterCounts
 
 class DraftMLModel:
     def __init__(self):

@@ -1,8 +1,10 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-import os
+
+from app.models.models import Player, RosterCounts
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://draft_user:draft_password@localhost:5432/draft_db")

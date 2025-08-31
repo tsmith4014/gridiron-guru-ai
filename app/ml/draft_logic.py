@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from models import Recommendation, Player, RosterCounts
+from app.models.models import Recommendation, Player, RosterCounts
 import logging
 
 class DraftLogic:
