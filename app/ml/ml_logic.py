@@ -163,11 +163,11 @@ class DraftMLModel:
             
             # Combine all scores
             total_score = (
-                ml_score * 0.4 +
-                need_score * 0.3 +
-                risk_score * 0.15 +
-                handcuff_score * 0.1 +
-                round_score * 0.05
+                ml_score * 0.8 +        # ML score should dominate (80%)
+                need_score * 0.1 +      # Positional need (10%)
+                risk_score * 0.05 +     # Risk assessment (5%)
+                handcuff_score * 0.03 + # Handcuff value (3%)
+                round_score * 0.02      # Round adjustments (2%)
             )
             
             # Final ADP validation - heavily penalize high-ADP players in early rounds
